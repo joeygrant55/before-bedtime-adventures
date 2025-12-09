@@ -8,137 +8,18 @@ import { Id } from "@/convex/_generated/dataModel";
 const MAX_FILE_SIZE_MB = 10;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-// Check if a file is HEIC format
-const isHeicFile = (file: File): boolean => {
-  const heicTypes = ["image/heic", "image/heif"];
-  const heicExtensions = [".heic", ".heif"];
+// Supported image formats (HEIC excluded due to browser compatibility issues)
+const SUPPORTED_TYPES = ["image/jpeg", "image/png", "image/jpg"];
+const SUPPORTED_EXTENSIONS = [".jpg", ".jpeg", ".png"];
 
-  if (heicTypes.includes(file.type.toLowerCase())) {
+const isSupportedImageFile = (file: File): boolean => {
+  // Check MIME type
+  if (SUPPORTED_TYPES.includes(file.type.toLowerCase())) {
     return true;
   }
-
+  // Also check extension as fallback
   const fileName = file.name.toLowerCase();
-  return heicExtensions.some(ext => fileName.endsWith(ext));
-};
-
-// Strategy 1: Use heic2any library (works in Chrome, Firefox, etc.)
-const convertWithHeic2Any = async (file: File): Promise<File | null> => {
-  try {
-    console.log("📦 Trying heic2any conversion...");
-    const heic2anyModule = await import("heic2any");
-    const heic2any = heic2anyModule.default;
-
-    const convertedBlob = await heic2any({
-      blob: file,
-      toType: "image/jpeg",
-      quality: 0.85,
-    });
-
-    const blob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
-    const newFileName = file.name.replace(/\.(heic|heif)$/i, ".jpg");
-    const convertedFile = new File([blob], newFileName, { type: "image/jpeg" });
-    console.log("✅ heic2any conversion successful");
-    return convertedFile;
-  } catch (error) {
-    console.warn("⚠️ heic2any failed:", error);
-    return null;
-  }
-};
-
-// Strategy 2: Use Canvas API (works if browser natively supports HEIC, like Safari)
-const convertWithCanvas = async (file: File): Promise<File | null> => {
-  try {
-    console.log("📦 Trying Canvas API conversion...");
-    const bitmap = await createImageBitmap(file);
-    const canvas = document.createElement("canvas");
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Could not get canvas context");
-    ctx.drawImage(bitmap, 0, 0);
-
-    const jpegBlob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85)
-    );
-
-    if (!jpegBlob) throw new Error("Canvas toBlob returned null");
-
-    const newFileName = file.name.replace(/\.(heic|heif)$/i, ".jpg");
-    const convertedFile = new File([jpegBlob], newFileName, { type: "image/jpeg" });
-    console.log("✅ Canvas conversion successful");
-    return convertedFile;
-  } catch (error) {
-    console.warn("⚠️ Canvas conversion failed:", error);
-    return null;
-  }
-};
-
-// Strategy 3: Use FileReader + Image (another fallback for Safari)
-const convertWithFileReader = async (file: File): Promise<File | null> => {
-  try {
-    console.log("📦 Trying FileReader conversion...");
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) {
-            resolve(null);
-            return;
-          }
-          ctx.drawImage(img, 0, 0);
-          canvas.toBlob(
-            (blob) => {
-              if (blob) {
-                const newFileName = file.name.replace(/\.(heic|heif)$/i, ".jpg");
-                const convertedFile = new File([blob], newFileName, { type: "image/jpeg" });
-                console.log("✅ FileReader conversion successful");
-                resolve(convertedFile);
-              } else {
-                resolve(null);
-              }
-            },
-            "image/jpeg",
-            0.85
-          );
-        };
-        img.onerror = () => resolve(null);
-        img.src = e.target?.result as string;
-      };
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(file);
-    });
-  } catch (error) {
-    console.warn("⚠️ FileReader conversion failed:", error);
-    return null;
-  }
-};
-
-// Main conversion function - tries multiple strategies
-const convertHeicToJpeg = async (file: File): Promise<File> => {
-  console.log("🔄 Converting HEIC to JPEG:", file.name, "size:", file.size, "type:", file.type);
-
-  // Try Strategy 1: heic2any (best for Chrome/Firefox)
-  let result = await convertWithHeic2Any(file);
-  if (result) return result;
-
-  // Try Strategy 2: Canvas API (works if browser supports HEIC natively)
-  result = await convertWithCanvas(file);
-  if (result) return result;
-
-  // Try Strategy 3: FileReader + Image
-  result = await convertWithFileReader(file);
-  if (result) return result;
-
-  // All strategies failed - return original file with warning
-  // The original HEIC will be uploaded; may not display in all browsers
-  console.warn("⚠️ All conversion strategies failed. Uploading original HEIC file.");
-  console.warn("   Note: Image may not display in browsers that don't support HEIC.");
-  return file;
+  return SUPPORTED_EXTENSIONS.some(ext => fileName.endsWith(ext));
 };
 
 interface ImageUploadProps {
@@ -170,10 +51,14 @@ export function ImageUpload({
     const errors: string[] = [];
 
     for (const file of files) {
-      // Check if it's an image file - also accept HEIC by extension since iOS may not report correct MIME type
-      const isImage = file.type.startsWith("image/") || isHeicFile(file);
-      if (!isImage) {
-        errors.push(`${file.name}: Not an image file`);
+      // Only accept JPEG and PNG (HEIC excluded due to browser compatibility issues)
+      if (!isSupportedImageFile(file)) {
+        const fileName = file.name.toLowerCase();
+        if (fileName.endsWith('.heic') || fileName.endsWith('.heif')) {
+          errors.push(`${file.name}: HEIC format not supported. Please convert to JPEG or PNG first.`);
+        } else {
+          errors.push(`${file.name}: Only JPEG and PNG images are supported.`);
+        }
         continue;
       }
       if (file.size > MAX_FILE_SIZE_BYTES) {
@@ -200,16 +85,10 @@ export function ImageUpload({
     setIsUploading(true);
 
     for (let i = 0; i < filesToUpload.length; i++) {
-      let file = filesToUpload[i];
+      const file = filesToUpload[i];
       setUploadProgress(`Uploading image ${i + 1} of ${filesToUpload.length}...`);
 
       try {
-        // Convert HEIC files to JPEG (browsers can't display HEIC)
-        if (isHeicFile(file)) {
-          setUploadProgress(`Converting image ${i + 1} to compatible format...`);
-          file = await convertHeicToJpeg(file);
-        }
-
         // Get upload URL from Convex
         const uploadUrl = await generateUploadUrl();
 
@@ -289,7 +168,7 @@ export function ImageUpload({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,.jpg,.jpeg,.png"
         multiple
         onChange={handleFileSelect}
         className="hidden"
@@ -334,7 +213,7 @@ export function ImageUpload({
                 {maxImages - currentImageCount !== 1 ? "s" : ""} remaining
               </div>
               <div className="text-xs text-gray-400 mt-2">
-                Max {MAX_FILE_SIZE_MB}MB per image • Works with Photos, iCloud, Files
+                JPEG & PNG only • Max {MAX_FILE_SIZE_MB}MB per image
               </div>
             </div>
           )}

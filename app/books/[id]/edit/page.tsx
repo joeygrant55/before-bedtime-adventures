@@ -8,6 +8,18 @@ import { AppHeader } from "@/components/AppHeader";
 import { ImageUpload } from "@/components/ImageUpload";
 import Link from "next/link";
 
+// Helper to detect if a URL points to a HEIC/HEIF image that browsers can't display
+// This prevents browser crashes from attempting to decode unsupported formats
+const isUnsupportedImageUrl = (url: string | null): boolean => {
+  if (!url) return false;
+  const lowerUrl = url.toLowerCase();
+  // Check for HEIC/HEIF in the URL (Convex storage URLs contain content-type info)
+  return lowerUrl.includes('image/heic') ||
+         lowerUrl.includes('image/heif') ||
+         lowerUrl.includes('.heic') ||
+         lowerUrl.includes('.heif');
+};
+
 type ImageWithUrls = Doc<"images"> & {
   originalUrl: string | null;
   cartoonUrl: string | null;
@@ -282,14 +294,25 @@ export default function BookEditorPage({
                               </div>
                               <div className="relative aspect-square bg-white rounded-xl overflow-hidden shadow-md border-2 border-gray-200 group/img hover:shadow-lg transition-shadow">
                                 {image.originalUrl ? (
-                                  <img
-                                    src={image.originalUrl}
-                                    alt="Original photo"
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => {
-                                      (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="%23f3f4f6"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="%239ca3af" font-family="Arial" font-size="16">Error loading</text></svg>';
-                                    }}
-                                  />
+                                  isUnsupportedImageUrl(image.originalUrl) ? (
+                                    // Don't attempt to render HEIC - it crashes the browser
+                                    <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                                      <div className="text-center p-4">
+                                        <div className="text-3xl mb-2">📷</div>
+                                        <div className="text-gray-600 font-medium text-sm">Unsupported format</div>
+                                        <div className="text-gray-400 text-xs mt-1">HEIC image cannot be displayed</div>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <img
+                                      src={image.originalUrl}
+                                      alt="Original photo"
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="%23f3f4f6"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="%239ca3af" font-family="Arial" font-size="16">Error loading</text></svg>';
+                                      }}
+                                    />
+                                  )
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center text-gray-400">
                                     Loading...
