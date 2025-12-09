@@ -11,6 +11,7 @@
 import type * as books from "../books.js";
 import type * as http from "../http.js";
 import type * as images from "../images.js";
+import type * as orders from "../orders.js";
 import type * as pages from "../pages.js";
 import type * as transformImage from "../transformImage.js";
 import type * as users from "../users.js";
@@ -25,6 +26,7 @@ declare const fullApi: ApiFromModules<{
   books: typeof books;
   http: typeof http;
   images: typeof images;
+  orders: typeof orders;
   pages: typeof pages;
   transformImage: typeof transformImage;
   users: typeof users;
