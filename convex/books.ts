@@ -125,3 +125,138 @@ export const updateBookStatus = mutation({
     });
   },
 });
+
+// Get all books for a user with progress data (for dashboard)
+export const getUserBooksWithProgress = query({
+  args: { clerkId: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+
+    if (!user) return [];
+
+    const books = await ctx.db
+      .query("books")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .order("desc")
+      .collect();
+
+    // For each book, get pages with images and calculate progress
+    return Promise.all(
+      books.map(async (book) => {
+        const pages = await ctx.db
+          .query("pages")
+          .withIndex("by_book", (q) => q.eq("bookId", book._id))
+          .order("asc")
+          .collect();
+
+        const pagesWithImages = await Promise.all(
+          pages.map(async (page) => {
+            const images = await ctx.db
+              .query("images")
+              .withIndex("by_page", (q) => q.eq("pageId", page._id))
+              .collect();
+
+            const imagesWithUrls = await Promise.all(
+              images.sort((a, b) => a.order - b.order).map(async (img) => ({
+                ...img,
+                originalUrl: await ctx.storage.getUrl(img.originalImageId),
+                cartoonUrl: img.cartoonImageId
+                  ? await ctx.storage.getUrl(img.cartoonImageId)
+                  : null,
+              }))
+            );
+
+            return { ...page, images: imagesWithUrls };
+          })
+        );
+
+        // Calculate progress stats
+        const allImages = pagesWithImages.flatMap((p) => p.images);
+        const totalImages = allImages.length;
+        const completedImages = allImages.filter(
+          (i) => i.generationStatus === "completed"
+        ).length;
+        const generatingImages = allImages.filter(
+          (i) => i.generationStatus === "generating"
+        ).length;
+
+        return {
+          ...book,
+          pages: pagesWithImages,
+          progress: {
+            total: totalImages,
+            completed: completedImages,
+            generating: generatingImages,
+            percent: totalImages > 0 ? (completedImages / totalImages) * 100 : 0,
+            isComplete: totalImages > 0 && completedImages === totalImages,
+          },
+        };
+      })
+    );
+  },
+});
+
+// Delete a book and all its pages and images
+export const deleteBook = mutation({
+  args: { bookId: v.id("books") },
+  handler: async (ctx, args) => {
+    // Get all pages for this book
+    const pages = await ctx.db
+      .query("pages")
+      .withIndex("by_book", (q) => q.eq("bookId", args.bookId))
+      .collect();
+
+    // Delete all images for each page
+    for (const page of pages) {
+      const images = await ctx.db
+        .query("images")
+        .withIndex("by_page", (q) => q.eq("pageId", page._id))
+        .collect();
+
+      for (const image of images) {
+        // Delete storage files
+        await ctx.storage.delete(image.originalImageId);
+        if (image.cartoonImageId) {
+          await ctx.storage.delete(image.cartoonImageId);
+        }
+        // Delete image record
+        await ctx.db.delete(image._id);
+      }
+
+      // Delete page
+      await ctx.db.delete(page._id);
+    }
+
+    // Delete the book
+    await ctx.db.delete(args.bookId);
+  },
+});
+
+// Update cover design
+export const updateCoverDesign = mutation({
+  args: {
+    bookId: v.id("books"),
+    coverDesign: v.object({
+      title: v.string(),
+      subtitle: v.optional(v.string()),
+      authorLine: v.optional(v.string()),
+      heroImageId: v.optional(v.id("_storage")),
+      theme: v.union(
+        v.literal("purple-magic"),
+        v.literal("ocean-adventure"),
+        v.literal("sunset-wonder"),
+        v.literal("forest-dreams")
+      ),
+      dedication: v.optional(v.string()),
+    }),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.bookId, {
+      coverDesign: args.coverDesign,
+      updatedAt: Date.now(),
+    });
+  },
+});

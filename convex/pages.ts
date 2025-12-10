@@ -22,7 +22,10 @@ export const getPage = query({
           const cartoonUrl = image.cartoonImageId
             ? await ctx.storage.getUrl(image.cartoonImageId)
             : null;
-          return { ...image, originalUrl, cartoonUrl };
+          const bakedUrl = image.bakedImageId
+            ? await ctx.storage.getUrl(image.bakedImageId)
+            : null;
+          return { ...image, originalUrl, cartoonUrl, bakedUrl };
         })
     );
 
@@ -73,7 +76,10 @@ export const getBookPages = query({
               const cartoonUrl = image.cartoonImageId
                 ? await ctx.storage.getUrl(image.cartoonImageId)
                 : null;
-              return { ...image, originalUrl, cartoonUrl };
+              const bakedUrl = image.bakedImageId
+                ? await ctx.storage.getUrl(image.bakedImageId)
+                : null;
+              return { ...image, originalUrl, cartoonUrl, bakedUrl };
             })
         );
 

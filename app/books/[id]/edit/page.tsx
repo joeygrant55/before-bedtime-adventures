@@ -1,33 +1,44 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id, Doc } from "@/convex/_generated/dataModel";
-import { AppHeader } from "@/components/AppHeader";
 import { ImageUpload } from "@/components/ImageUpload";
+import { MiniBookPreview } from "@/components/BookPreview/MiniBookPreview";
+import { ExpandableTabs } from "@/components/ui/expandable-tabs";
+import { TextOverlayEditor } from "@/components/TextOverlayEditor";
 import Link from "next/link";
-
-// Helper to detect if a URL points to a HEIC/HEIF image that browsers can't display
-// This prevents browser crashes from attempting to decode unsupported formats
-const isUnsupportedImageUrl = (url: string | null): boolean => {
-  if (!url) return false;
-  const lowerUrl = url.toLowerCase();
-  // Check for HEIC/HEIF in the URL (Convex storage URLs contain content-type info)
-  return lowerUrl.includes('image/heic') ||
-         lowerUrl.includes('image/heif') ||
-         lowerUrl.includes('.heic') ||
-         lowerUrl.includes('.heif');
-};
+import { useRouter } from "next/navigation";
 
 type ImageWithUrls = Doc<"images"> & {
   originalUrl: string | null;
   cartoonUrl: string | null;
+  bakedUrl: string | null;
 };
 
 type PageWithImages = Doc<"pages"> & {
   images: ImageWithUrls[];
 };
+
+type EditorMode = "pages" | "cover" | "spine" | "preview";
+type BookView = "front" | "spine" | "back";
+type CoverTheme = "purple-magic" | "ocean-adventure" | "sunset-wonder" | "forest-dreams";
+
+const MODE_TABS = [
+  { title: "Pages", icon: "📝" },
+  { title: "Cover", icon: "🎨" },
+  { title: "Spine", icon: "📚" },
+  { type: "separator" as const },
+  { title: "Preview", icon: "✨" },
+];
+
+const THEMES: { id: CoverTheme; name: string; gradient: string }[] = [
+  { id: "purple-magic", name: "Purple Magic", gradient: "from-purple-600 to-purple-900" },
+  { id: "ocean-adventure", name: "Ocean Adventure", gradient: "from-blue-600 to-blue-900" },
+  { id: "sunset-wonder", name: "Sunset Wonder", gradient: "from-orange-500 to-red-800" },
+  { id: "forest-dreams", name: "Forest Dreams", gradient: "from-emerald-600 to-teal-900" },
+];
 
 export default function BookEditorPage({
   params,
@@ -36,399 +47,839 @@ export default function BookEditorPage({
 }) {
   const { id } = use(params);
   const bookId = id as Id<"books">;
+  const router = useRouter();
 
+  // State
+  const [activeMode, setActiveMode] = useState<EditorMode>("pages");
+  const [bookView, setBookView] = useState<BookView>("front");
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [editedTitle, setEditedTitle] = useState("");
 
+  // Cover design state
+  const [coverTitle, setCoverTitle] = useState("");
+  const [coverSubtitle, setCoverSubtitle] = useState("");
+  const [coverAuthorLine, setCoverAuthorLine] = useState("");
+  const [coverTheme, setCoverTheme] = useState<CoverTheme>("purple-magic");
+  const [coverDedication, setCoverDedication] = useState("");
+  const [coverHeroIndex, setCoverHeroIndex] = useState(0);
+  const [customCoverImage, setCustomCoverImage] = useState<string | null>(null);
+
+  // Queries & Mutations
   const book = useQuery(api.books.getBook, { bookId });
   const pages = useQuery(api.pages.getBookPages, { bookId });
-  const updatePageText = useMutation(api.pages.updatePageText);
-  const updateBookTitle = useMutation(api.books.updateBookTitle);
+  const updateCoverDesign = useMutation(api.books.updateCoverDesign);
   const deleteImage = useMutation(api.images.deleteImage);
+
+  // Initialize cover design from book
+  useEffect(() => {
+    if (book) {
+      setCoverTitle(book.coverDesign?.title || book.title);
+      setCoverSubtitle(book.coverDesign?.subtitle || "");
+      setCoverAuthorLine(book.coverDesign?.authorLine || "");
+      setCoverTheme(book.coverDesign?.theme || "purple-magic");
+      setCoverDedication(book.coverDesign?.dedication || "");
+    }
+  }, [book]);
+
+  // Sync book view with active mode
+  useEffect(() => {
+    if (activeMode === "cover") setBookView("front");
+    else if (activeMode === "spine") setBookView("spine");
+    else if (activeMode === "preview") setBookView("front");
+  }, [activeMode]);
 
   if (!book || !pages) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="relative w-16 h-16 mx-auto mb-4">
+            <div className="absolute inset-0 border-4 border-purple-500/30 rounded-full" />
+            <div className="absolute inset-0 border-4 border-purple-500 rounded-full border-t-transparent animate-spin" />
+          </div>
+          <p className="text-purple-300">Loading your book...</p>
+        </div>
       </div>
     );
   }
 
   const currentPage = pages[currentPageIndex] as PageWithImages | undefined;
 
-  const handleTextChange = async (field: "title" | "storyText", value: string) => {
-    if (!currentPage) return;
+  // Progress calculations
+  const allImages = pages.flatMap((page: PageWithImages) => page.images || []);
+  const totalImages = allImages.length;
+  const completedImages = allImages.filter((img: ImageWithUrls) => img.generationStatus === "completed").length;
+  const generatingImages = allImages.filter((img: ImageWithUrls) => img.generationStatus === "generating").length;
+  const isAllComplete = totalImages > 0 && completedImages === totalImages;
+  const progressPercent = totalImages > 0 ? (completedImages / totalImages) * 100 : 0;
 
-    await updatePageText({
-      pageId: currentPage._id,
-      [field]: value,
+  // Handle tab change
+  const handleTabChange = (index: number | null) => {
+    if (index === null) return;
+    const modes: EditorMode[] = ["pages", "cover", "spine", "preview"];
+    // Account for separator at index 3
+    const modeIndex = index > 2 ? index - 1 : index;
+    if (modes[modeIndex]) {
+      setActiveMode(modes[modeIndex]);
+    }
+  };
+
+  // Get tab index for current mode
+  const getTabIndex = () => {
+    const modeIndices: Record<EditorMode, number> = {
+      pages: 0,
+      cover: 1,
+      spine: 2,
+      preview: 4, // After separator
+    };
+    return modeIndices[activeMode];
+  };
+
+  // Handle cover save
+  const handleSaveCover = async () => {
+    await updateCoverDesign({
+      bookId,
+      coverDesign: {
+        title: coverTitle || book.title,
+        subtitle: coverSubtitle || undefined,
+        authorLine: coverAuthorLine || undefined,
+        theme: coverTheme,
+        dedication: coverDedication || undefined,
+      },
     });
   };
 
-  const handleTitleEdit = () => {
-    setEditedTitle(book?.title || "");
-    setIsEditingTitle(true);
-  };
-
-  const handleTitleSave = async () => {
-    if (editedTitle.trim()) {
-      await updateBookTitle({
-        bookId,
-        title: editedTitle.trim(),
-      });
-    }
-    setIsEditingTitle(false);
-  };
-
-  const handleTitleCancel = () => {
-    setIsEditingTitle(false);
-    setEditedTitle("");
-  };
-
+  // Handle delete image
   const handleDeleteImage = async (imageId: Id<"images">) => {
-    if (confirm("Are you sure you want to delete this image?")) {
+    if (confirm("Delete this image?")) {
       await deleteImage({ imageId });
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <AppHeader showBackButton backHref="/dashboard" backLabel="Back to Dashboard" />
+  // Handle custom cover image upload
+  const handleCustomCoverUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-      <main className="container mx-auto px-4 py-8">
-        {/* Book Header */}
-        <div className="mb-8">
-          {isEditingTitle ? (
-            <div className="flex items-center gap-3">
-              <input
-                type="text"
-                value={editedTitle}
-                onChange={(e) => setEditedTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleTitleSave();
-                  if (e.key === "Escape") handleTitleCancel();
-                }}
-                autoFocus
-                className="text-3xl font-bold text-gray-900 border-2 border-purple-500 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-              <button
-                onClick={handleTitleSave}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-semibold"
-              >
-                ✓
-              </button>
-              <button
-                onClick={handleTitleCancel}
-                className="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-semibold"
-              >
-                ✕
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold text-gray-900">{book.title}</h1>
-              <button
-                onClick={handleTitleEdit}
-                className="text-gray-400 hover:text-purple-600 transition-colors"
-                title="Edit title"
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                  />
-                </svg>
-              </button>
-            </div>
-          )}
-          <p className="text-gray-600 mt-2">
-            Page {currentPageIndex + 1} of {pages.length}
-          </p>
+    if (!file.type.startsWith("image/")) return;
+    if (file.size > 10 * 1024 * 1024) return;
+    if (file.type === "image/heic" || file.type === "image/heif") return;
+
+    const previewUrl = URL.createObjectURL(file);
+    setCustomCoverImage(previewUrl);
+    setCoverHeroIndex(-1);
+  };
+
+  // Get all completed cartoon images
+  const completedCartoonImages = allImages.filter((img: ImageWithUrls) =>
+    img.generationStatus === "completed" && img.cartoonUrl
+  );
+
+  // Get the selected cover hero image URL
+  const selectedCoverHeroImage = coverHeroIndex === -1
+    ? customCoverImage
+    : completedCartoonImages[coverHeroIndex]?.cartoonUrl || null;
+
+  // Create a mock book with cover design for preview
+  const previewBook = {
+    ...book,
+    coverDesign: {
+      title: coverTitle || book.title,
+      subtitle: coverSubtitle,
+      authorLine: coverAuthorLine,
+      theme: coverTheme,
+      dedication: coverDedication,
+    },
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col">
+      {/* Header */}
+      <header className="relative z-20 bg-slate-900/80 backdrop-blur-sm border-b border-purple-500/20">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+          <Link
+            href="/dashboard"
+            className="text-purple-300 hover:text-white transition-colors flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span className="hidden sm:inline">Dashboard</span>
+          </Link>
+
+          <h1 className="text-lg font-bold text-white truncate max-w-[200px] sm:max-w-none">
+            {book.title}
+          </h1>
+
+          <Link
+            href={`/books/${bookId}/preview`}
+            className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+          >
+            <span>📖</span>
+            <span className="hidden sm:inline">Full Preview</span>
+          </Link>
+        </div>
+      </header>
+
+      {/* Mode Tabs */}
+      <div className="relative z-10 flex justify-center py-4">
+        <ExpandableTabs
+          tabs={MODE_TABS}
+          selected={getTabIndex()}
+          onChange={handleTabChange}
+          persistSelection={true}
+        />
+      </div>
+
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col items-center px-4 pb-24 overflow-y-auto">
+        {/* 3D Book Preview - Always Visible */}
+        <div className="mb-6">
+          <MiniBookPreview
+            book={previewBook as Doc<"books">}
+            pages={pages as PageWithImages[]}
+            currentView={bookView}
+            onViewChange={setBookView}
+            onFullPreview={() => router.push(`/books/${bookId}/preview`)}
+            size="medium"
+            coverHeroImage={selectedCoverHeroImage}
+          />
         </div>
 
-        <div className="grid lg:grid-cols-4 gap-8">
-          {/* Page Navigator Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-sm p-4 sticky top-24">
-              <h2 className="font-semibold text-gray-900 mb-4">Pages</h2>
-              <div className="space-y-2">
-                {pages.map((page: PageWithImages, index: number) => (
-                  <button
-                    key={page._id}
-                    onClick={() => setCurrentPageIndex(index)}
-                    className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
-                      index === currentPageIndex
-                        ? "bg-purple-100 text-purple-900 font-semibold"
-                        : "hover:bg-gray-100 text-gray-700"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>Page {index + 1}</span>
-                      {page.images && page.images.length > 0 && (
-                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-                          {page.images.length} 📸
-                        </span>
-                      )}
-                    </div>
-                    {page.title && (
-                      <div className="text-xs text-gray-500 mt-1 truncate">
-                        {page.title}
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
+        {/* Content Panel based on active mode */}
+        <div className="w-full max-w-4xl">
+          {activeMode === "pages" && (
+            <PagesPanel
+              pages={pages as PageWithImages[]}
+              currentPageIndex={currentPageIndex}
+              onPageChange={setCurrentPageIndex}
+              currentPage={currentPage}
+              onDeleteImage={handleDeleteImage}
+            />
+          )}
 
-              <div className="mt-6 pt-4 border-t">
-                <Link href={`/books/${bookId}/preview`}>
-                  <button className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold px-4 py-3 rounded-lg transition-colors">
-                    📖 Preview Book
-                  </button>
-                </Link>
+          {activeMode === "cover" && (
+            <CoverPanel
+              title={coverTitle}
+              subtitle={coverSubtitle}
+              authorLine={coverAuthorLine}
+              theme={coverTheme}
+              onTitleChange={setCoverTitle}
+              onSubtitleChange={setCoverSubtitle}
+              onAuthorLineChange={setCoverAuthorLine}
+              onThemeChange={setCoverTheme}
+              onSave={handleSaveCover}
+              allImages={completedCartoonImages}
+              selectedHeroIndex={coverHeroIndex}
+              onHeroIndexChange={setCoverHeroIndex}
+              customCoverImage={customCoverImage}
+              onCustomCoverUpload={handleCustomCoverUpload}
+            />
+          )}
+
+          {activeMode === "spine" && (
+            <SpinePanel
+              title={coverTitle || book.title}
+              theme={coverTheme}
+              dedication={coverDedication}
+              onDedicationChange={setCoverDedication}
+              onSave={handleSaveCover}
+            />
+          )}
+
+          {activeMode === "preview" && (
+            <PreviewPanel
+              bookId={bookId}
+              isAllComplete={isAllComplete}
+              completedImages={completedImages}
+              totalImages={totalImages}
+            />
+          )}
+        </div>
+      </main>
+
+      {/* Progress Footer */}
+      <footer className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur-sm border-t border-purple-500/20">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between gap-4">
+            {/* Progress */}
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-1">
+                {generatingImages > 0 ? (
+                  <div className="flex items-center gap-2 text-purple-400">
+                    <div className="w-3 h-3 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-sm">Creating magic...</span>
+                  </div>
+                ) : isAllComplete ? (
+                  <div className="flex items-center gap-2 text-green-400">
+                    <span>✨</span>
+                    <span className="text-sm font-medium">Book ready!</span>
+                  </div>
+                ) : totalImages > 0 ? (
+                  <span className="text-purple-300 text-sm">{completedImages}/{totalImages} images</span>
+                ) : (
+                  <span className="text-purple-400/60 text-sm">Upload photos to start</span>
+                )}
               </div>
+              {totalImages > 0 && (
+                <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden max-w-xs">
+                  <div
+                    className={`h-full transition-all duration-500 ${
+                      isAllComplete ? "bg-green-500" : "bg-gradient-to-r from-purple-500 to-pink-500"
+                    }`}
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+              )}
             </div>
+
+            {/* Order Button */}
+            <Link href={`/books/${bookId}/checkout`}>
+              <button
+                className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${
+                  isAllComplete
+                    ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white shadow-lg shadow-purple-500/30 animate-pulse"
+                    : "bg-purple-600/50 text-purple-200 cursor-not-allowed"
+                }`}
+                disabled={!isAllComplete}
+              >
+                <span>🛒</span>
+                <span>Order Book</span>
+              </button>
+            </Link>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+// ============ PAGES PANEL ============
+function PagesPanel({
+  pages,
+  currentPageIndex,
+  onPageChange,
+  currentPage,
+  onDeleteImage,
+}: {
+  pages: PageWithImages[];
+  currentPageIndex: number;
+  onPageChange: (index: number) => void;
+  currentPage?: PageWithImages;
+  onDeleteImage: (imageId: Id<"images">) => void;
+}) {
+  // State for text overlay editor
+  const [editingImageId, setEditingImageId] = useState<Id<"images"> | null>(null);
+  const [editingImageUrl, setEditingImageUrl] = useState<string | null>(null);
+
+  // Open text overlay editor for an image
+  const handleOpenOverlayEditor = (image: ImageWithUrls) => {
+    if (image.cartoonUrl) {
+      setEditingImageId(image._id);
+      setEditingImageUrl(image.cartoonUrl);
+    }
+  };
+
+  // Close text overlay editor
+  const handleCloseOverlayEditor = () => {
+    setEditingImageId(null);
+    setEditingImageUrl(null);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Page Navigator Strip */}
+      <div className="bg-slate-800/50 rounded-2xl p-4 border border-purple-500/20">
+        <div className="flex items-center justify-between mb-3">
+          <button
+            onClick={() => onPageChange(Math.max(0, currentPageIndex - 1))}
+            disabled={currentPageIndex === 0}
+            className="p-2 rounded-lg bg-slate-700/50 text-purple-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
+          <div className="flex items-center gap-2">
+            {pages.map((page, i) => (
+              <button
+                key={page._id}
+                onClick={() => onPageChange(i)}
+                className={`w-8 h-8 rounded-lg text-xs font-medium transition-all ${
+                  i === currentPageIndex
+                    ? "bg-purple-600 text-white shadow-lg"
+                    : page.images?.length
+                      ? "bg-slate-700 text-purple-300 hover:bg-slate-600"
+                      : "bg-slate-800 text-slate-500 hover:bg-slate-700"
+                }`}
+              >
+                {i + 1}
+              </button>
+            ))}
           </div>
 
-          {/* Main Editor */}
-          <div className="lg:col-span-3 space-y-6">
-            {currentPage && (
-              <>
-                {/* Page Title */}
-                <div className="bg-white rounded-xl shadow-sm p-6">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Page Title (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={currentPage.title || ""}
-                    onChange={(e) => handleTextChange("title", e.target.value)}
-                    placeholder={`Day ${currentPageIndex + 1} at...`}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  />
-                </div>
+          <button
+            onClick={() => onPageChange(Math.min(pages.length - 1, currentPageIndex + 1))}
+            disabled={currentPageIndex === pages.length - 1}
+            className="p-2 rounded-lg bg-slate-700/50 text-purple-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
 
-                {/* Photo Upload */}
-                <div className="bg-white rounded-xl shadow-sm p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    📸 Upload Photos (1-3)
-                  </h3>
-                  <ImageUpload
-                    pageId={currentPage._id}
-                    currentImageCount={currentPage.images?.length || 0}
-                    maxImages={3}
-                  />
+        <div className="text-center text-purple-300 text-sm">
+          Page {currentPageIndex + 1} of {pages.length}
+        </div>
+      </div>
 
-                  {/* Display uploaded images */}
-                  {currentPage.images && currentPage.images.length > 0 && (
-                    <div className="mt-6 space-y-6">
-                      {currentPage.images.map((image: ImageWithUrls) => (
-                        <div
-                          key={image._id}
-                          className="relative bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 rounded-2xl p-6 shadow-lg border border-purple-200 group hover:shadow-xl transition-all duration-300"
-                        >
-                          {/* Delete button */}
-                          <button
-                            onClick={() => handleDeleteImage(image._id)}
-                            className="absolute top-4 right-4 z-20 bg-red-500 hover:bg-red-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110"
-                            title="Delete image"
-                          >
-                            <svg
-                              className="w-5 h-5"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </svg>
-                          </button>
+      {/* Page Editor */}
+      {currentPage && (
+        <div className="bg-slate-800/50 rounded-2xl p-4 border border-purple-500/20">
+          <h3 className="text-white font-medium mb-3 flex items-center gap-2">
+            <span>📸</span> Page {currentPageIndex + 1} Photo
+          </h3>
 
-                          {/* Status Badge */}
-                          <div className="absolute top-4 left-4 z-10">
-                            {image.generationStatus === "pending" && (
-                              <div className="bg-yellow-100 border-2 border-yellow-300 text-yellow-800 px-4 py-2 rounded-full font-semibold text-sm flex items-center gap-2 shadow-md">
-                                <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
-                                Queued for magic...
+          {currentPage.images && currentPage.images.length > 0 ? (
+            <div className="space-y-4">
+              {currentPage.images.map((image) => (
+                <div key={image._id} className="relative group">
+                  {/* Status Badge */}
+                  <div className="absolute top-3 left-3 z-10">
+                    {image.generationStatus === "generating" && (
+                      <div className="bg-blue-500/90 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                        <div className="w-2 h-2 border border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Processing</span>
+                      </div>
+                    )}
+                    {image.generationStatus === "completed" && (
+                      <div className="bg-green-500/90 text-white text-xs px-2 py-1 rounded-full">
+                        ✨ Ready
+                      </div>
+                    )}
+                    {image.generationStatus === "failed" && (
+                      <div className="bg-red-500/90 text-white text-xs px-2 py-1 rounded-full">
+                        ❌ Failed
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Delete Button */}
+                  <button
+                    onClick={() => onDeleteImage(image._id)}
+                    className="absolute top-3 right-3 z-10 bg-red-500 hover:bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+
+                  {/* Image Preview - Before/After side by side */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Original */}
+                    <div className="space-y-2">
+                      <p className="text-purple-400 text-xs text-center">Original</p>
+                      <div className="aspect-square rounded-xl overflow-hidden bg-slate-700">
+                        {image.originalUrl && (
+                          <img
+                            src={image.originalUrl}
+                            alt="Original"
+                            className="w-full h-full object-cover object-center"
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Transformed / Baked */}
+                    <div className="space-y-2">
+                      <p className="text-purple-400 text-xs text-center">
+                        {image.bakedUrl ? "Final" : image.cartoonUrl ? "Cartoon" : "Processing..."}
+                        {image.bakingStatus === "baking" && " (Baking text...)"}
+                      </p>
+                      <div className="aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-purple-900/50 to-pink-900/50 relative group/cartoon">
+                        {/* Show baked image if available, otherwise cartoon */}
+                        {(image.bakedUrl || image.cartoonUrl) ? (
+                          <>
+                            <img
+                              src={image.bakedUrl || image.cartoonUrl || ""}
+                              alt={image.bakedUrl ? "Final with text" : "Transformed"}
+                              className="w-full h-full object-cover object-center"
+                            />
+                            {/* Baking overlay */}
+                            {image.bakingStatus === "baking" && (
+                              <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                <div className="text-center text-white">
+                                  <div className="w-8 h-8 border-3 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                                  <div className="text-sm">Baking text...</div>
+                                </div>
                               </div>
                             )}
-                            {image.generationStatus === "generating" && (
-                              <div className="bg-blue-100 border-2 border-blue-300 text-blue-800 px-4 py-2 rounded-full font-semibold text-sm flex items-center gap-2 shadow-md">
-                                <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping"></div>
-                                Creating Disney magic...
-                              </div>
+                            {/* Add/Edit Text Button - shown on hover for completed images */}
+                            {image.bakingStatus !== "baking" && (
+                              <button
+                                onClick={() => handleOpenOverlayEditor(image)}
+                                className="absolute inset-0 bg-black/50 opacity-0 group-hover/cartoon:opacity-100 transition-opacity flex items-center justify-center"
+                              >
+                                <div className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 shadow-lg">
+                                  <span>📝</span>
+                                  <span>{image.bakedUrl ? "Edit Text" : "Add Text"}</span>
+                                </div>
+                              </button>
                             )}
-                            {image.generationStatus === "completed" && (
-                              <div className="bg-green-100 border-2 border-green-300 text-green-800 px-4 py-2 rounded-full font-semibold text-sm flex items-center gap-2 shadow-md">
-                                <span className="text-lg">✨</span>
-                                Transformed!
-                              </div>
-                            )}
-                            {image.generationStatus === "failed" && (
-                              <div className="bg-red-100 border-2 border-red-300 text-red-800 px-4 py-2 rounded-full font-semibold text-sm flex items-center gap-2 shadow-md">
-                                ❌ Transformation failed
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Before & After Comparison */}
-                          <div className="grid md:grid-cols-2 gap-6 mt-12">
-                            {/* Original Image */}
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between">
-                                <h4 className="font-bold text-gray-900 text-lg flex items-center gap-2">
-                                  <span className="text-2xl">📸</span>
-                                  Your Photo
-                                </h4>
-                              </div>
-                              <div className="relative aspect-square bg-white rounded-xl overflow-hidden shadow-md border-2 border-gray-200 group/img hover:shadow-lg transition-shadow">
-                                {image.originalUrl ? (
-                                  isUnsupportedImageUrl(image.originalUrl) ? (
-                                    // Don't attempt to render HEIC - it crashes the browser
-                                    <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                                      <div className="text-center p-4">
-                                        <div className="text-3xl mb-2">📷</div>
-                                        <div className="text-gray-600 font-medium text-sm">Unsupported format</div>
-                                        <div className="text-gray-400 text-xs mt-1">HEIC image cannot be displayed</div>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <img
-                                      src={image.originalUrl}
-                                      alt="Original photo"
-                                      className="w-full h-full object-cover"
-                                      onError={(e) => {
-                                        (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="%23f3f4f6"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="%239ca3af" font-family="Arial" font-size="16">Error loading</text></svg>';
-                                      }}
-                                    />
-                                  )
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                    Loading...
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Cartoon Image */}
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between">
-                                <h4 className="font-bold text-purple-900 text-lg flex items-center gap-2">
-                                  <span className="text-2xl">🎨</span>
-                                  Disney Style
-                                </h4>
-                              </div>
-                              <div className="relative aspect-square bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl overflow-hidden shadow-md border-2 border-purple-300 group/img hover:shadow-lg transition-shadow">
-                                {image.generationStatus === "completed" && image.cartoonUrl ? (
-                                  <img
-                                    src={image.cartoonUrl}
-                                    alt="Disney cartoon version"
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => {
-                                      (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="%23fae8ff"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="%23a855f7" font-family="Arial" font-size="16">Error loading</text></svg>';
-                                    }}
-                                  />
-                                ) : image.generationStatus === "generating" ? (
-                                  <div className="w-full h-full flex items-center justify-center">
-                                    <div className="text-center space-y-4">
-                                      <div className="relative w-16 h-16 mx-auto">
-                                        <div className="absolute inset-0 border-4 border-purple-200 rounded-full"></div>
-                                        <div className="absolute inset-0 border-4 border-purple-600 rounded-full border-t-transparent animate-spin"></div>
-                                      </div>
-                                      <div className="text-purple-700 font-semibold">
-                                        Creating magic...
-                                      </div>
-                                      <div className="text-sm text-purple-600">
-                                        This takes about 10-30 seconds
-                                      </div>
-                                    </div>
-                                  </div>
-                                ) : image.generationStatus === "failed" ? (
-                                  <div className="w-full h-full flex items-center justify-center">
-                                    <div className="text-center space-y-2 p-6">
-                                      <div className="text-4xl">😔</div>
-                                      <div className="font-semibold text-red-700">
-                                        Transformation failed
-                                      </div>
-                                      <div className="text-sm text-red-600">
-                                        Try deleting and re-uploading
-                                      </div>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center">
-                                    <div className="text-center space-y-2 text-purple-600">
-                                      <div className="text-4xl">⏳</div>
-                                      <div className="font-semibold">Waiting to start...</div>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
+                          </>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-purple-400">
+                            <div className="text-center">
+                              <div className="text-3xl mb-2">🎨</div>
+                              <div className="text-sm">Creating magic...</div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-
-                {/* Story Text */}
-                <div className="bg-white rounded-xl shadow-sm p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    📝 Your Story
-                  </h3>
-                  <textarea
-                    value={currentPage.storyText || ""}
-                    onChange={(e) => handleTextChange("storyText", e.target.value)}
-                    placeholder="Write what happened on this day..."
-                    rows={6}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                  />
-                  <div className="flex justify-between items-center mt-4">
-                    <div className="text-sm text-gray-500">
-                      {currentPage.storyText?.length || 0} characters
-                    </div>
-                    <button className="text-purple-600 hover:text-purple-700 font-medium text-sm">
-                      ✨ AI Suggest Story
-                    </button>
                   </div>
                 </div>
+              ))}
 
-                {/* Navigation */}
-                <div className="flex justify-between items-center pt-4">
-                  <button
-                    onClick={() => setCurrentPageIndex(Math.max(0, currentPageIndex - 1))}
-                    disabled={currentPageIndex === 0}
-                    className="px-6 py-3 border-2 border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    ← Previous Page
-                  </button>
-                  <button
-                    onClick={() =>
-                      setCurrentPageIndex(Math.min(pages.length - 1, currentPageIndex + 1))
-                    }
-                    disabled={currentPageIndex === pages.length - 1}
-                    className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next Page →
-                  </button>
+              {currentPage.images.length < 3 && (
+                <div className="pt-2">
+                  <ImageUpload
+                    pageId={currentPage._id}
+                    currentImageCount={currentPage.images.length}
+                    maxImages={3}
+                  />
                 </div>
-              </>
+              )}
+            </div>
+          ) : (
+            <ImageUpload
+              pageId={currentPage._id}
+              currentImageCount={0}
+              maxImages={3}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Text Overlay Editor Modal */}
+      {editingImageId && editingImageUrl && (
+        <TextOverlayEditor
+          imageId={editingImageId}
+          imageUrl={editingImageUrl}
+          onClose={handleCloseOverlayEditor}
+        />
+      )}
+    </div>
+  );
+}
+
+// ============ COVER PANEL ============
+function CoverPanel({
+  title,
+  subtitle,
+  authorLine,
+  theme,
+  onTitleChange,
+  onSubtitleChange,
+  onAuthorLineChange,
+  onThemeChange,
+  onSave,
+  allImages,
+  selectedHeroIndex,
+  onHeroIndexChange,
+  customCoverImage,
+  onCustomCoverUpload,
+}: {
+  title: string;
+  subtitle: string;
+  authorLine: string;
+  theme: CoverTheme;
+  onTitleChange: (v: string) => void;
+  onSubtitleChange: (v: string) => void;
+  onAuthorLineChange: (v: string) => void;
+  onThemeChange: (v: CoverTheme) => void;
+  onSave: () => void;
+  allImages: { cartoonUrl: string | null }[];
+  selectedHeroIndex: number;
+  onHeroIndexChange: (index: number) => void;
+  customCoverImage: string | null;
+  onCustomCoverUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <div className="bg-slate-800/50 rounded-2xl p-6 border border-purple-500/20">
+      <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+        <span>🎨</span> Design Your Cover
+      </h3>
+
+      <div className="space-y-4">
+        {/* Cover Image Selection */}
+        <div>
+          <label className="text-purple-300 text-sm mb-2 block">Cover Hero Image</label>
+
+          {/* Book images - primary option */}
+          {allImages.length > 0 ? (
+            <div className="mb-4">
+              <p className="text-purple-400 text-xs mb-3">Select from your transformed images:</p>
+              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
+                {allImages.map((img, index) => (
+                  img.cartoonUrl && (
+                    <button
+                      key={index}
+                      onClick={() => onHeroIndexChange(index)}
+                      className={`aspect-square rounded-xl overflow-hidden border-3 transition-all hover:scale-105 ${
+                        selectedHeroIndex === index
+                          ? "border-purple-500 ring-4 ring-purple-500/50 shadow-lg shadow-purple-500/30"
+                          : "border-slate-600 hover:border-purple-500/50"
+                      }`}
+                    >
+                      <img src={img.cartoonUrl} alt={`Option ${index + 1}`} className="w-full h-full object-cover" />
+                    </button>
+                  )
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="mb-4 p-4 rounded-xl bg-slate-700/30 border border-purple-500/20 text-center">
+              <p className="text-purple-400/60 text-sm">
+                Add photos to your book pages first to select a cover image.
+              </p>
+            </div>
+          )}
+
+          {/* Custom upload - secondary option */}
+          <div className="pt-3 border-t border-purple-500/20">
+            <p className="text-purple-400 text-xs mb-2">Or upload a custom image:</p>
+            <label className="flex items-center justify-center gap-2 p-2 rounded-lg border border-dashed border-purple-500/30 hover:border-purple-500 hover:bg-purple-500/10 cursor-pointer transition-all">
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={onCustomCoverUpload}
+                className="hidden"
+              />
+              <span className="text-sm">📸</span>
+              <span className="text-purple-300 text-xs">Upload Custom Image</span>
+            </label>
+            {customCoverImage && (
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  onClick={() => onHeroIndexChange(-1)}
+                  className={`w-12 h-12 rounded-lg overflow-hidden border-2 transition-all ${
+                    selectedHeroIndex === -1
+                      ? "border-purple-500 ring-2 ring-purple-500/50"
+                      : "border-slate-600 hover:border-purple-500/50"
+                  }`}
+                >
+                  <img src={customCoverImage} alt="Uploaded" className="w-full h-full object-cover" />
+                </button>
+                <span className="text-purple-400 text-xs">Custom upload</span>
+              </div>
             )}
           </div>
         </div>
-      </main>
+
+        <div>
+          <label className="text-purple-300 text-sm mb-1 block">Book Title</label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => onTitleChange(e.target.value)}
+            placeholder="Your Book Title"
+            className="w-full bg-slate-700/50 border border-purple-500/20 rounded-lg px-4 py-3 text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+          />
+        </div>
+
+        <div>
+          <label className="text-purple-300 text-sm mb-1 block">Subtitle (optional)</label>
+          <input
+            type="text"
+            value={subtitle}
+            onChange={(e) => onSubtitleChange(e.target.value)}
+            placeholder="e.g., Our Family Adventure 2024"
+            className="w-full bg-slate-700/50 border border-purple-500/20 rounded-lg px-4 py-3 text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+          />
+        </div>
+
+        <div>
+          <label className="text-purple-300 text-sm mb-1 block">Author Line (optional)</label>
+          <input
+            type="text"
+            value={authorLine}
+            onChange={(e) => onAuthorLineChange(e.target.value)}
+            placeholder="e.g., Created by the Smith Family"
+            className="w-full bg-slate-700/50 border border-purple-500/20 rounded-lg px-4 py-3 text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+          />
+        </div>
+
+        <div>
+          <label className="text-purple-300 text-sm mb-2 block">Color Theme</label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {THEMES.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => onThemeChange(t.id)}
+                className={`p-3 rounded-xl border-2 transition-all ${
+                  theme === t.id
+                    ? "border-white shadow-lg scale-105"
+                    : "border-transparent hover:border-purple-500/50"
+                }`}
+              >
+                <div className={`h-8 rounded-lg bg-gradient-to-br ${t.gradient} mb-2`} />
+                <p className="text-white text-xs font-medium">{t.name}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button
+          onClick={onSave}
+          className="w-full bg-purple-600 hover:bg-purple-500 text-white font-semibold py-3 rounded-xl transition-colors"
+        >
+          Save Cover Design
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============ SPINE PANEL ============
+function SpinePanel({
+  title,
+  theme,
+  dedication,
+  onDedicationChange,
+  onSave,
+}: {
+  title: string;
+  theme: CoverTheme;
+  dedication: string;
+  onDedicationChange: (v: string) => void;
+  onSave: () => void;
+}) {
+  return (
+    <div className="bg-slate-800/50 rounded-2xl p-6 border border-purple-500/20">
+      <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+        <span>📚</span> Spine & Back Cover
+      </h3>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Spine Preview */}
+        <div className="flex flex-col items-center">
+          <p className="text-purple-300 text-sm mb-3">Spine Preview (as seen on bookshelf)</p>
+          <div className="relative">
+            {/* Mini spine visualization */}
+            <div
+              className={`w-12 h-48 rounded bg-gradient-to-b ${
+                THEMES.find(t => t.id === theme)?.gradient || "from-purple-600 to-purple-900"
+              } flex items-center justify-center shadow-xl`}
+            >
+              <div
+                className="text-amber-200 font-bold tracking-wider whitespace-nowrap text-xs"
+                style={{
+                  writingMode: "vertical-rl",
+                  textOrientation: "mixed",
+                  transform: "rotate(180deg)",
+                  maxHeight: "180px",
+                  overflow: "hidden",
+                  fontFamily: "Georgia, serif",
+                }}
+              >
+                {title}
+              </div>
+            </div>
+            {/* Shadow */}
+            <div className="absolute -bottom-2 left-2 right-2 h-4 bg-black/30 blur-md rounded-full" />
+          </div>
+          <p className="text-purple-400/60 text-xs mt-4 text-center">
+            This is how your book looks on a shelf!
+          </p>
+        </div>
+
+        {/* Back Cover Content */}
+        <div className="space-y-4">
+          <div>
+            <label className="text-purple-300 text-sm mb-1 block">Dedication (back cover)</label>
+            <textarea
+              value={dedication}
+              onChange={(e) => onDedicationChange(e.target.value)}
+              placeholder="e.g., For Emma and Jake, who make every adventure magical."
+              rows={4}
+              className="w-full bg-slate-700/50 border border-purple-500/20 rounded-lg px-4 py-3 text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+            />
+          </div>
+
+          <p className="text-purple-400/60 text-xs">
+            The back cover will show a collage of your transformed images along with your dedication message.
+          </p>
+
+          <button
+            onClick={onSave}
+            className="w-full bg-purple-600 hover:bg-purple-500 text-white font-semibold py-3 rounded-xl transition-colors"
+          >
+            Save Design
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ PREVIEW PANEL ============
+function PreviewPanel({
+  bookId,
+  isAllComplete,
+  completedImages,
+  totalImages,
+}: {
+  bookId: Id<"books">;
+  isAllComplete: boolean;
+  completedImages: number;
+  totalImages: number;
+}) {
+  return (
+    <div className="bg-slate-800/50 rounded-2xl p-6 border border-purple-500/20 text-center">
+      <h3 className="text-white font-semibold mb-4 flex items-center justify-center gap-2">
+        <span>✨</span> Your Book Preview
+      </h3>
+
+      {isAllComplete ? (
+        <div className="space-y-4">
+          <div className="text-green-400 text-lg font-medium">
+            All {totalImages} images are transformed!
+          </div>
+          <p className="text-purple-300">
+            Your book is ready. Use the rotation controls above to see all angles.
+          </p>
+          <Link href={`/books/${bookId}/preview`}>
+            <button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold px-8 py-4 rounded-xl shadow-lg shadow-purple-500/30 transition-all hover:scale-105">
+              Open Full Book Preview →
+            </button>
+          </Link>
+        </div>
+      ) : totalImages > 0 ? (
+        <div className="space-y-4">
+          <div className="text-purple-300">
+            {completedImages} of {totalImages} images ready
+          </div>
+          <p className="text-purple-400/70">
+            Your images are being transformed into Disney-style illustrations.
+            You can preview while we work!
+          </p>
+          <Link href={`/books/${bookId}/preview`}>
+            <button className="bg-purple-600 hover:bg-purple-500 text-white font-semibold px-6 py-3 rounded-xl transition-colors">
+              Preview Work in Progress
+            </button>
+          </Link>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="text-purple-400/70">
+            No photos uploaded yet
+          </div>
+          <p className="text-purple-400/50">
+            Go to the Pages tab and upload some photos to get started!
+          </p>
+        </div>
+      )}
     </div>
   );
 }

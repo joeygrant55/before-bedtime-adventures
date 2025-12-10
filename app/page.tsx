@@ -2,6 +2,7 @@
 
 import { SignInButton, SignedIn, SignedOut, useUser } from "@clerk/nextjs";
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -131,44 +132,67 @@ export default function Home() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-pink-500/10 rounded-full blur-[150px]" />
       </div>
 
-      {/* Header */}
-      <header className="relative z-10 p-6">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">📚</span>
-            <span className="text-white font-bold text-xl hidden sm:inline">Before Bedtime Adventures</span>
-          </div>
-          <SignedOut>
-            <SignInButton mode="modal" forceRedirectUrl="/dashboard">
-              <button className="text-purple-300 hover:text-white font-medium transition-colors">
+      {/* Floating Sign In Button */}
+      <div className="fixed top-6 right-6 z-50">
+        <SignedOut>
+          <SignInButton mode="modal" forceRedirectUrl="/dashboard">
+            <button className="group relative px-5 py-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 hover:border-purple-400/50 transition-all duration-300 shadow-lg hover:shadow-purple-500/20">
+              <span className="flex items-center gap-2 text-sm font-medium text-white">
+                <span className="text-amber-400">✨</span>
                 Sign In
-              </button>
-            </SignInButton>
-          </SignedOut>
-          <SignedIn>
-            <Link href="/dashboard" className="text-purple-300 hover:text-white font-medium transition-colors">
-              Dashboard
-            </Link>
-          </SignedIn>
-        </div>
-      </header>
+              </span>
+              {/* Subtle glow effect on hover */}
+              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-500/0 via-purple-500/10 to-pink-500/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </button>
+          </SignInButton>
+        </SignedOut>
+        <SignedIn>
+          <Link href="/dashboard">
+            <button className="group relative px-5 py-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 hover:border-purple-400/50 transition-all duration-300 shadow-lg hover:shadow-purple-500/20">
+              <span className="flex items-center gap-2 text-sm font-medium text-white">
+                <span className="text-amber-400">📚</span>
+                My Books
+              </span>
+              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-500/0 via-purple-500/10 to-pink-500/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </button>
+          </Link>
+        </SignedIn>
+      </div>
 
       {/* Main Content */}
-      <main className="relative z-10 max-w-6xl mx-auto px-4 py-8 md:py-16">
-        {/* Hero Section */}
+      <main className="relative z-10 max-w-6xl mx-auto px-4 py-4 md:py-8">
+        {/* Hero Section with Big Logo */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="text-center mb-12 md:mb-16"
+          className="text-center mb-10 md:mb-14"
         >
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
+          {/* Big Hero Logo */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="mb-6 md:mb-8"
+          >
+            <Image
+              src="/logo.png"
+              alt="Before Bedtime Adventures"
+              width={800}
+              height={605}
+              className="h-[180px] md:h-[240px] lg:h-[300px] w-auto mx-auto drop-shadow-2xl"
+              priority
+            />
+          </motion.div>
+
+          {/* Tagline */}
+          <h1 className="text-2xl md:text-4xl lg:text-5xl font-bold text-white mb-4 leading-tight">
             Turn Vacation Photos Into
             <span className="block bg-gradient-to-r from-amber-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
               Magical Storybooks
             </span>
           </h1>
-          <p className="text-lg md:text-xl text-purple-200 max-w-2xl mx-auto">
+          <p className="text-base md:text-lg text-purple-200 max-w-2xl mx-auto">
             Upload your family photos and watch AI transform them into Disney-style illustrations.
             Create a premium hardcover book delivered to your door.
           </p>

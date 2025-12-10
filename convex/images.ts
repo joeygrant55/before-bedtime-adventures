@@ -97,3 +97,23 @@ export const generateUploadUrl = mutation({
     return await ctx.storage.generateUploadUrl();
   },
 });
+
+// Update crop settings for an image (for square aspect ratio)
+export const updateCropSettings = mutation({
+  args: {
+    imageId: v.id("images"),
+    cropSettings: v.object({
+      scale: v.number(),
+      offsetX: v.number(),
+      offsetY: v.number(),
+      originalWidth: v.number(),
+      originalHeight: v.number(),
+    }),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.imageId, {
+      cropSettings: args.cropSettings,
+      updatedAt: Date.now(),
+    });
+  },
+});

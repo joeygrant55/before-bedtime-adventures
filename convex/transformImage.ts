@@ -104,7 +104,7 @@ export const transformToDisney = action({
                   ],
                 }],
                 generationConfig: {
-                  responseModalities: ["IMAGE"],
+                  responseModalities: ["TEXT", "IMAGE"],
                 },
               }),
             }

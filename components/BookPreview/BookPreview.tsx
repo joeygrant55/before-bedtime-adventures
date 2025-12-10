@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import Image from "next/image";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { Doc } from "@/convex/_generated/dataModel";
 
 type ImageWithUrls = Doc<"images"> & {
   originalUrl: string | null;
   cartoonUrl: string | null;
+  bakedUrl?: string | null;
 };
 
 type PageWithImages = Doc<"pages"> & {
@@ -17,6 +19,7 @@ interface BookPreviewProps {
   book: Doc<"books">;
   pages: PageWithImages[];
   onOrderClick?: () => void;
+  onBackClick?: () => void;
 }
 
 // Custom hook for detecting mobile
@@ -33,7 +36,7 @@ function useIsMobile() {
   return isMobile;
 }
 
-export function BookPreview({ book, pages, onOrderClick }: BookPreviewProps) {
+export function BookPreview({ book, pages, onOrderClick, onBackClick }: BookPreviewProps) {
   const [currentSpread, setCurrentSpread] = useState(0); // 0 = cover, 1+ = page spreads
   const [isFlipping, setIsFlipping] = useState(false);
   const [flipDirection, setFlipDirection] = useState<"next" | "prev">("next");
@@ -138,6 +141,26 @@ export function BookPreview({ book, pages, onOrderClick }: BookPreviewProps) {
     return `Pages ${(currentSpread - 1) * 2 + 1}-${Math.min((currentSpread - 1) * 2 + 2, pages.length)}`;
   };
 
+  // Get all completed images for collage/hero - prefer baked URLs
+  const getAllCartoonUrls = (): string[] => {
+    return pages.flatMap((page) =>
+      (page.images || [])
+        .filter((img) => img.generationStatus === "completed" && (img.bakedUrl || img.cartoonUrl))
+        .map((img) => (img.bakedUrl || img.cartoonUrl) as string)
+    );
+  };
+
+  // Get hero image URL for the cover (first completed cartoon)
+  const getHeroImageUrl = (): string | null => {
+    const urls = getAllCartoonUrls();
+    return urls.length > 0 ? urls[0] : null;
+  };
+
+  // Get image collage for back cover (up to 6 images)
+  const getImageCollage = (): string[] => {
+    return getAllCartoonUrls().slice(0, 6);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col">
       {/* Ambient light effect */}
@@ -149,12 +172,25 @@ export function BookPreview({ book, pages, onOrderClick }: BookPreviewProps) {
       {/* Header */}
       <header className="relative z-10 p-4 md:p-6">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="text-lg md:text-2xl font-bold text-white truncate">{book.title}</h1>
-            <p className="text-purple-300 text-xs md:text-sm mt-1 hidden sm:block">
-              Preview your storybook
-            </p>
+          {/* Left side - Back button and title */}
+          <div className="flex items-center gap-3 min-w-0">
+            {onBackClick && (
+              <button
+                onClick={onBackClick}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-purple-300 hover:text-white transition-all text-sm font-medium flex-shrink-0"
+              >
+                <span>←</span>
+                <span className="hidden sm:inline">Back</span>
+              </button>
+            )}
+            <div className="min-w-0">
+              <h1 className="text-lg md:text-2xl font-bold text-white truncate">{book.title}</h1>
+              <p className="text-purple-300 text-xs md:text-sm mt-1 hidden sm:block">
+                Preview your storybook
+              </p>
+            </div>
           </div>
+          {/* Right side - Order button */}
           <button
             onClick={onOrderClick}
             className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-bold px-4 md:px-8 py-3 md:py-4 rounded-xl shadow-lg shadow-amber-500/25 transition-all hover:shadow-xl hover:shadow-amber-500/40 hover:scale-105 text-sm md:text-base whitespace-nowrap flex-shrink-0"
@@ -190,12 +226,18 @@ export function BookPreview({ book, pages, onOrderClick }: BookPreviewProps) {
                   pageCount={pages.length}
                   onOpen={goToNextSpread}
                   isMobile={isMobile}
+                  coverDesign={book.coverDesign ? {
+                    ...book.coverDesign,
+                    heroImageUrl: getHeroImageUrl(),
+                  } : undefined}
                 />
               ) : spread.type === "back" ? (
                 <BackCover
                   key="back"
                   title={book.title}
                   isMobile={isMobile}
+                  coverDesign={book.coverDesign}
+                  imageCollage={getImageCollage()}
                 />
               ) : spread.type === "single" ? (
                 <SinglePage
@@ -290,19 +332,62 @@ export function BookPreview({ book, pages, onOrderClick }: BookPreviewProps) {
   );
 }
 
+type CoverDesign = {
+  title: string;
+  subtitle?: string;
+  authorLine?: string;
+  heroImageUrl?: string | null;
+  theme: "purple-magic" | "ocean-adventure" | "sunset-wonder" | "forest-dreams";
+  dedication?: string;
+};
+
+const THEME_COLORS = {
+  "purple-magic": {
+    primary: "from-purple-600 via-purple-700 to-purple-900",
+    spine: "from-purple-950 via-purple-900 to-purple-800",
+    accent: "amber",
+  },
+  "ocean-adventure": {
+    primary: "from-blue-600 via-blue-700 to-blue-900",
+    spine: "from-blue-950 via-blue-900 to-blue-800",
+    accent: "cyan",
+  },
+  "sunset-wonder": {
+    primary: "from-orange-500 via-orange-600 to-red-800",
+    spine: "from-red-950 via-orange-900 to-orange-800",
+    accent: "amber",
+  },
+  "forest-dreams": {
+    primary: "from-emerald-600 via-emerald-700 to-teal-900",
+    spine: "from-emerald-950 via-emerald-900 to-teal-800",
+    accent: "lime",
+  },
+};
+
 // Book Cover Component
 function BookCover({
   title,
   pageCount,
   onOpen,
   isMobile = false,
+  coverDesign,
 }: {
   title: string;
   pageCount: number;
   onOpen: () => void;
   isMobile?: boolean;
+  coverDesign?: CoverDesign;
 }) {
-  const size = isMobile ? "w-[280px] h-[350px]" : "w-[400px] h-[500px]";
+  // Square format to match Lulu 8.5x8.5 print specifications
+  const coverWidth = isMobile ? 320 : 500;
+  const coverHeight = isMobile ? 320 : 500;
+  const spineWidth = isMobile ? 32 : 48; // Much thicker spine for visibility
+  const size = isMobile ? "w-[320px] h-[320px]" : "w-[500px] h-[500px]";
+
+  // Get theme colors
+  const theme = coverDesign?.theme || "purple-magic";
+  const colors = THEME_COLORS[theme];
+  const displayTitle = coverDesign?.title || title;
 
   return (
     <motion.div
@@ -314,17 +399,53 @@ function BookCover({
       className="cursor-pointer group"
       style={{ transformStyle: "preserve-3d" }}
     >
-      {/* Book spine and depth */}
+      {/* SPINE - The key element for bookshelf display */}
       <div
-        className="absolute left-0 top-0 bottom-0 w-3 md:w-4 bg-gradient-to-r from-purple-950 to-purple-900 rounded-l-sm"
+        className={`absolute left-0 top-0 bottom-0 bg-gradient-to-r ${colors.spine} rounded-l-sm flex items-center justify-center overflow-hidden`}
         style={{
-          transform: `translateX(${isMobile ? "-12px" : "-16px"}) rotateY(-90deg)`,
+          width: `${spineWidth}px`,
+          transform: `translateX(-${spineWidth}px) rotateY(-90deg)`,
           transformOrigin: "right center"
         }}
-      />
+      >
+        {/* Spine texture */}
+        <div className="absolute inset-0 opacity-20"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+          }}
+        />
+
+        {/* Spine decorative lines */}
+        <div className={`absolute top-3 left-1 right-1 h-px bg-${colors.accent}-400/40`} />
+        <div className={`absolute bottom-3 left-1 right-1 h-px bg-${colors.accent}-400/40`} />
+
+        {/* Vertical title on spine */}
+        <div
+          className={`text-${colors.accent}-200 font-bold tracking-wider whitespace-nowrap`}
+          style={{
+            writingMode: "vertical-rl",
+            textOrientation: "mixed",
+            transform: "rotate(180deg)",
+            fontSize: isMobile ? "10px" : "13px",
+            maxHeight: isMobile ? "300px" : "420px",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            fontFamily: "Georgia, serif",
+            textShadow: "0 1px 2px rgba(0,0,0,0.3)"
+          }}
+        >
+          {displayTitle}
+        </div>
+
+        {/* Small star at bottom of spine */}
+        <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 text-${colors.accent}-400/60 text-xs`}>✦</div>
+
+        {/* Spine highlight */}
+        <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-r from-white/10 to-transparent" />
+      </div>
 
       {/* Main cover */}
-      <div className={`relative ${size} bg-gradient-to-br from-purple-600 via-purple-700 to-purple-900 rounded-r-lg rounded-l-sm shadow-2xl overflow-hidden transition-transform group-hover:scale-[1.02]`}>
+      <div className={`relative ${size} bg-gradient-to-br ${colors.primary} rounded-r-lg rounded-l-sm shadow-2xl overflow-hidden transition-transform group-hover:scale-[1.02]`}>
         {/* Texture overlay */}
         <div className="absolute inset-0 opacity-30"
           style={{
@@ -333,38 +454,64 @@ function BookCover({
         />
 
         {/* Decorative border */}
-        <div className="absolute inset-3 md:inset-4 border-2 border-amber-400/30 rounded-lg" />
-        <div className="absolute inset-5 md:inset-6 border border-amber-400/20 rounded-lg" />
+        <div className={`absolute inset-3 md:inset-4 border-2 border-${colors.accent}-400/30 rounded-lg`} />
+        <div className={`absolute inset-5 md:inset-6 border border-${colors.accent}-400/20 rounded-lg`} />
 
         {/* Stars decoration */}
-        <div className="absolute top-6 md:top-8 left-6 md:left-8 text-amber-400/60 text-xl md:text-2xl">✦</div>
-        <div className="absolute top-10 md:top-12 right-10 md:right-12 text-amber-400/40 text-lg md:text-xl">✦</div>
-        <div className="absolute bottom-16 md:bottom-20 left-10 md:left-12 text-amber-400/50 text-base md:text-lg">✦</div>
-        <div className="absolute bottom-12 md:bottom-16 right-6 md:right-8 text-amber-400/30 text-xl md:text-2xl">✦</div>
+        <div className={`absolute top-6 md:top-8 left-6 md:left-8 text-${colors.accent}-400/60 text-xl md:text-2xl`}>✦</div>
+        <div className={`absolute top-10 md:top-12 right-10 md:right-12 text-${colors.accent}-400/40 text-lg md:text-xl`}>✦</div>
+        <div className={`absolute bottom-16 md:bottom-20 left-10 md:left-12 text-${colors.accent}-400/50 text-base md:text-lg`}>✦</div>
+        <div className={`absolute bottom-12 md:bottom-16 right-6 md:right-8 text-${colors.accent}-400/30 text-xl md:text-2xl`}>✦</div>
 
         {/* Content */}
         <div className="absolute inset-0 flex flex-col items-center justify-center p-6 md:p-8 text-center">
-          {/* Moon/sun decoration */}
-          <div className={`${isMobile ? "w-14 h-14" : "w-20 h-20"} rounded-full bg-gradient-to-br from-amber-300 to-amber-500 mb-4 md:mb-6 shadow-lg shadow-amber-400/30`} />
+          {/* Hero image or moon/sun decoration */}
+          {coverDesign?.heroImageUrl ? (
+            <div className={`${isMobile ? "w-24 h-24" : "w-32 h-32"} rounded-xl overflow-hidden mb-4 md:mb-6 shadow-lg border-2 border-white/20`}>
+              <img
+                src={coverDesign.heroImageUrl}
+                alt="Cover hero"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ) : (
+            <div className={`${isMobile ? "w-14 h-14" : "w-20 h-20"} rounded-full bg-gradient-to-br from-${colors.accent}-300 to-${colors.accent}-500 mb-4 md:mb-6 shadow-lg shadow-${colors.accent}-400/30`} />
+          )}
 
           <h1 className={`${isMobile ? "text-xl" : "text-3xl"} font-bold text-white mb-2 drop-shadow-lg px-4`} style={{ fontFamily: "Georgia, serif" }}>
-            {title}
+            {displayTitle}
           </h1>
 
-          <div className="w-16 md:w-24 h-0.5 bg-gradient-to-r from-transparent via-amber-400/60 to-transparent my-3 md:my-4" />
+          {/* Subtitle */}
+          {coverDesign?.subtitle && (
+            <p className={`text-${colors.accent}-200/90 text-xs md:text-sm mb-2`}>
+              {coverDesign.subtitle}
+            </p>
+          )}
 
-          <p className="text-amber-200/80 text-xs md:text-sm">
-            A personalized adventure
-          </p>
-          <p className="text-amber-200/60 text-xs mt-1">
-            {pageCount} pages of magic
-          </p>
+          <div className={`w-16 md:w-24 h-0.5 bg-gradient-to-r from-transparent via-${colors.accent}-400/60 to-transparent my-3 md:my-4`} />
+
+          {/* Author line or default */}
+          {coverDesign?.authorLine ? (
+            <p className={`text-${colors.accent}-200/80 text-xs md:text-sm`}>
+              {coverDesign.authorLine}
+            </p>
+          ) : (
+            <>
+              <p className={`text-${colors.accent}-200/80 text-xs md:text-sm`}>
+                A personalized adventure
+              </p>
+              <p className={`text-${colors.accent}-200/60 text-xs mt-1`}>
+                {pageCount} pages of magic
+              </p>
+            </>
+          )}
         </div>
 
         {/* Click/Tap hint */}
         <div className="absolute bottom-4 md:bottom-6 left-0 right-0 text-center">
           <motion.p
-            className="text-amber-300/80 text-xs md:text-sm"
+            className={`text-${colors.accent}-300/80 text-xs md:text-sm`}
             animate={{ opacity: [0.5, 1, 0.5] }}
             transition={{ duration: 2, repeat: Infinity }}
           >
@@ -395,8 +542,25 @@ function BookCover({
 }
 
 // Back Cover Component
-function BackCover({ title, isMobile = false }: { title: string; isMobile?: boolean }) {
-  const size = isMobile ? "w-[280px] h-[350px]" : "w-[400px] h-[500px]";
+function BackCover({
+  title,
+  isMobile = false,
+  coverDesign,
+  imageCollage,
+}: {
+  title: string;
+  isMobile?: boolean;
+  coverDesign?: CoverDesign;
+  imageCollage?: string[];
+}) {
+  // Square format to match Lulu 8.5x8.5 print specifications
+  const size = isMobile ? "w-[320px] h-[320px]" : "w-[500px] h-[500px]";
+  const spineWidth = isMobile ? 32 : 48;
+
+  // Get theme colors
+  const theme = coverDesign?.theme || "purple-magic";
+  const colors = THEME_COLORS[theme];
+  const displayTitle = coverDesign?.title || title;
 
   return (
     <motion.div
@@ -406,7 +570,52 @@ function BackCover({ title, isMobile = false }: { title: string; isMobile?: bool
       transition={{ duration: 0.5, ease: "easeOut" }}
       style={{ transformStyle: "preserve-3d" }}
     >
-      <div className={`relative ${size} bg-gradient-to-br from-purple-700 via-purple-800 to-purple-950 rounded-l-lg rounded-r-sm shadow-2xl overflow-hidden`}>
+      {/* SPINE on back cover (right side) */}
+      <div
+        className={`absolute right-0 top-0 bottom-0 bg-gradient-to-l ${colors.spine} rounded-r-sm flex items-center justify-center overflow-hidden`}
+        style={{
+          width: `${spineWidth}px`,
+          transform: `translateX(${spineWidth}px) rotateY(90deg)`,
+          transformOrigin: "left center"
+        }}
+      >
+        {/* Spine texture */}
+        <div className="absolute inset-0 opacity-20"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+          }}
+        />
+
+        {/* Spine decorative lines */}
+        <div className={`absolute top-3 left-1 right-1 h-px bg-${colors.accent}-400/40`} />
+        <div className={`absolute bottom-3 left-1 right-1 h-px bg-${colors.accent}-400/40`} />
+
+        {/* Vertical title on spine */}
+        <div
+          className={`text-${colors.accent}-200 font-bold tracking-wider whitespace-nowrap`}
+          style={{
+            writingMode: "vertical-rl",
+            textOrientation: "mixed",
+            transform: "rotate(180deg)",
+            fontSize: isMobile ? "10px" : "13px",
+            maxHeight: isMobile ? "300px" : "420px",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            fontFamily: "Georgia, serif",
+            textShadow: "0 1px 2px rgba(0,0,0,0.3)"
+          }}
+        >
+          {displayTitle}
+        </div>
+
+        {/* Small star at bottom of spine */}
+        <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 text-${colors.accent}-400/60 text-xs`}>✦</div>
+
+        {/* Spine highlight */}
+        <div className="absolute inset-y-0 right-0 w-1 bg-gradient-to-l from-white/10 to-transparent" />
+      </div>
+
+      <div className={`relative ${size} bg-gradient-to-br ${colors.primary} rounded-l-lg rounded-r-sm shadow-2xl overflow-hidden`}>
         {/* Texture */}
         <div className="absolute inset-0 opacity-30"
           style={{
@@ -414,17 +623,50 @@ function BackCover({ title, isMobile = false }: { title: string; isMobile?: bool
           }}
         />
 
-        <div className="absolute inset-0 flex flex-col items-center justify-center p-8 md:p-12 text-center">
-          <div className={`${isMobile ? "text-3xl mb-4" : "text-4xl mb-6"}`}>🌙</div>
-          <p className={`text-purple-200 ${isMobile ? "text-base" : "text-lg"} italic mb-3 md:mb-4`} style={{ fontFamily: "Georgia, serif" }}>
-            "The end of one adventure
-            <br />is the beginning of another."
+        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 md:p-10 text-center">
+          {/* Image collage */}
+          {imageCollage && imageCollage.length > 0 && (
+            <div className={`grid ${imageCollage.length >= 4 ? "grid-cols-2" : "grid-cols-3"} gap-1.5 mb-4 md:mb-6`}>
+              {imageCollage.slice(0, 6).map((url, i) => (
+                <div
+                  key={i}
+                  className={`${isMobile ? "w-10 h-10" : "w-14 h-14"} rounded-lg overflow-hidden border border-white/20 shadow-md`}
+                >
+                  <img src={url} alt="" className="w-full h-full object-cover object-center" />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Dedication or default quote */}
+          {coverDesign?.dedication ? (
+            <p className={`text-white/90 ${isMobile ? "text-sm" : "text-base"} italic mb-3 md:mb-4 max-w-[80%]`} style={{ fontFamily: "Georgia, serif" }}>
+              &ldquo;{coverDesign.dedication}&rdquo;
+            </p>
+          ) : (
+            <>
+              <div className={`${isMobile ? "mb-4" : "mb-6"}`}>
+                <Image
+                  src="/logo.png"
+                  alt="Before Bedtime Adventures"
+                  width={isMobile ? 60 : 80}
+                  height={isMobile ? 60 : 80}
+                  className={`${isMobile ? "w-15 h-15" : "w-20 h-20"} mx-auto`}
+                />
+              </div>
+              <p className={`text-white/80 ${isMobile ? "text-sm" : "text-base"} italic mb-3 md:mb-4`} style={{ fontFamily: "Georgia, serif" }}>
+                &ldquo;The end of one adventure
+                <br />is the beginning of another.&rdquo;
+              </p>
+            </>
+          )}
+
+          <div className={`w-12 md:w-16 h-0.5 bg-${colors.accent}-400/40 my-3 md:my-4`} />
+
+          <p className={`text-${colors.accent}-200/80 text-xs md:text-sm`}>
+            {displayTitle}
           </p>
-          <div className="w-12 md:w-16 h-0.5 bg-purple-400/40 my-3 md:my-4" />
-          <p className="text-purple-300/80 text-xs md:text-sm">
-            {title}
-          </p>
-          <p className="text-purple-400/60 text-xs mt-3 md:mt-4">
+          <p className={`text-${colors.accent}-300/60 text-xs mt-3 md:mt-4`}>
             Made with love by
             <br />
             Before Bedtime Adventures
@@ -460,7 +702,8 @@ function SinglePage({
       transition={{ duration: 0.3, ease: "easeOut" }}
       className="relative"
     >
-      <div className="w-[280px] h-[350px] bg-amber-50 rounded-lg shadow-2xl overflow-hidden">
+      {/* Square format to match Lulu 8.5x8.5 print specifications */}
+      <div className="w-[320px] h-[320px] bg-amber-50 rounded-lg shadow-2xl overflow-hidden">
         <StoryPage
           page={page}
           pageNum={pageNum}
@@ -508,7 +751,7 @@ function OpenBook({
       {/* Book spine shadow */}
       <div className="absolute left-1/2 top-0 bottom-0 w-8 -translate-x-1/2 bg-gradient-to-r from-black/20 via-black/40 to-black/20 z-10 pointer-events-none" />
 
-      {/* Left page */}
+      {/* Left page - Square format to match Lulu 8.5x8.5 print specifications */}
       <motion.div
         className="relative"
         animate={isFlipping && flipDirection === "prev" ? {
@@ -516,7 +759,7 @@ function OpenBook({
           transition: { duration: 0.6 }
         } : {}}
       >
-        <div className="w-[400px] h-[500px] bg-amber-50 rounded-l-sm shadow-xl overflow-hidden">
+        <div className="w-[500px] h-[500px] bg-amber-50 rounded-l-sm shadow-xl overflow-hidden">
           <StoryPage
             page={leftPage}
             pageNum={leftPageNum}
@@ -528,7 +771,7 @@ function OpenBook({
         <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-black/10 to-transparent pointer-events-none" />
       </motion.div>
 
-      {/* Right page */}
+      {/* Right page - Square format to match Lulu 8.5x8.5 print specifications */}
       <motion.div
         className="relative"
         animate={isFlipping && flipDirection === "next" ? {
@@ -536,7 +779,7 @@ function OpenBook({
           transition: { duration: 0.6 }
         } : {}}
       >
-        <div className="w-[400px] h-[500px] bg-amber-50 rounded-r-sm shadow-xl overflow-hidden">
+        <div className="w-[500px] h-[500px] bg-amber-50 rounded-r-sm shadow-xl overflow-hidden">
           <StoryPage
             page={rightPage}
             pageNum={rightPageNum}
@@ -570,9 +813,9 @@ function StoryPage({
   side: "left" | "right";
   isMobile?: boolean;
 }) {
-  // Get the cartoon image (or first image if no cartoon yet)
+  // Get the image - prefer baked (with text), then cartoon, then original
   const image = page?.images?.[0];
-  const imageUrl = image?.cartoonUrl || image?.originalUrl;
+  const imageUrl = image?.bakedUrl || image?.cartoonUrl || image?.originalUrl;
 
   if (!page || pageNum > totalPages) {
     // Empty page
@@ -599,7 +842,8 @@ function StoryPage({
             <img
               src={imageUrl}
               alt={page.title || `Page ${pageNum}`}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover object-center"
+              style={{ objectPosition: 'center center' }}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-100 to-pink-100">

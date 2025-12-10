@@ -113,11 +113,16 @@ export default function BookPreviewPage({
     router.push(`/books/${bookId}/checkout`);
   };
 
+  const handleBackClick = () => {
+    router.push(`/books/${bookId}/edit`);
+  };
+
   return (
     <BookPreview
       book={book}
       pages={pages as PageWithImages[]}
       onOrderClick={handleOrderClick}
+      onBackClick={handleBackClick}
     />
   );
 }

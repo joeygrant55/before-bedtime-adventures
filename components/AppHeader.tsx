@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { UserMenu } from "./UserMenu";
 
 interface AppHeaderProps {
@@ -29,10 +30,15 @@ export function AppHeader({
                 <span className="hidden sm:inline">{backLabel}</span>
               </Link>
             ) : (
-              <Link href="/dashboard">
-                <h1 className="text-xl md:text-2xl font-bold text-gray-900">
-                  Before Bedtime Adventures
-                </h1>
+              <Link href="/dashboard" className="shrink-0">
+                <Image
+                  src="/logo.png"
+                  alt="Before Bedtime Adventures"
+                  width={540}
+                  height={408}
+                  className="h-[120px] w-auto"
+                  priority
+                />
               </Link>
             )}
           </div>

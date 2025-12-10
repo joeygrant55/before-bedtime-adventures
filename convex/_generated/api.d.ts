@@ -8,11 +8,13 @@
  * @module
  */
 
+import type * as bakeTextOverlay from "../bakeTextOverlay.js";
 import type * as books from "../books.js";
 import type * as http from "../http.js";
 import type * as images from "../images.js";
 import type * as orders from "../orders.js";
 import type * as pages from "../pages.js";
+import type * as textOverlays from "../textOverlays.js";
 import type * as transformImage from "../transformImage.js";
 import type * as users from "../users.js";
 
@@ -23,11 +25,13 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  bakeTextOverlay: typeof bakeTextOverlay;
   books: typeof books;
   http: typeof http;
   images: typeof images;
   orders: typeof orders;
   pages: typeof pages;
+  textOverlays: typeof textOverlays;
   transformImage: typeof transformImage;
   users: typeof users;
 }>;

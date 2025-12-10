@@ -6,6 +6,15 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Before Bedtime Adventures",
   description: "Turn your vacation photos into magical children's storybooks",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/apple-touch-icon.png",
+  },
+  openGraph: {
+    title: "Before Bedtime Adventures",
+    description: "Turn your vacation photos into magical children's storybooks",
+    images: ["/og-image.png"],
+  },
 };
 
 export default function RootLayout({
