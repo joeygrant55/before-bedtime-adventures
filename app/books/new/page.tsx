@@ -73,13 +73,13 @@ export default function NewBookPage() {
               </p>
             </div>
 
-            {/* Page Count */}
+            {/* Stop Count */}
             <div className="mb-8">
               <label
                 htmlFor="pageCount"
                 className="block text-sm font-semibold text-gray-700 mb-2"
               >
-                Number of Pages (Stops on Your Journey)
+                Number of Stops on Your Journey
               </label>
               <input
                 id="pageCount"
@@ -91,7 +91,7 @@ export default function NewBookPage() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               />
               <p className="text-sm text-gray-500 mt-2">
-                Choose between 10-20 pages (one for each stop on your vacation)
+                Choose 10-20 stops (each stop becomes a 2-page spread in your book)
               </p>
             </div>
 
@@ -101,9 +101,9 @@ export default function NewBookPage() {
                 📸 What's Next?
               </h3>
               <ul className="text-sm text-blue-800 space-y-2">
-                <li>• Upload 1-3 photos for each page/stop</li>
+                <li>• Upload 1-3 photos for each stop</li>
                 <li>• We'll transform them into Disney-style cartoons</li>
-                <li>• Write your own story text for each page</li>
+                <li>• Add custom text overlays to your images</li>
                 <li>• Order a premium hardcover book when you're done!</li>
               </ul>
             </div>

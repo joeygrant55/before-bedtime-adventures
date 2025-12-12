@@ -30,6 +30,7 @@ yarn-error.log*
 # env files (do not commit env files with sensitive data)
 .env*.local
 .env
+.env.reference
 
 # vercel
 .vercel

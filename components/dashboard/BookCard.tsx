@@ -106,7 +106,7 @@ export function BookCard({ book, onEdit, onPreview, onDelete }: BookCardProps) {
             {displayTitle}
           </h3>
           <p className="text-purple-400/60 text-xs mt-0.5">
-            {book.pageCount} pages
+            {book.pageCount} stops
           </p>
 
           {/* Progress */}

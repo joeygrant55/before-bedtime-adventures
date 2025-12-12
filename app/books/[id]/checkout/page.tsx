@@ -5,8 +5,10 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id, Doc } from "@/convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { US_STATES } from "@/lib/printSpecs";
 
 type ImageWithUrls = Doc<"images"> & {
   originalUrl: string | null;
@@ -19,14 +21,21 @@ type PageWithImages = Doc<"pages"> & {
 
 interface ShippingAddress {
   name: string;
-  street: string;
+  street1: string;
+  street2: string;
   city: string;
-  state: string;
-  zipCode: string;
-  country: string;
+  stateCode: string;
+  postalCode: string;
+  phoneNumber: string;
 }
 
 const BOOK_PRICE = 4499; // $44.99 in cents
+
+// US state options for dropdown
+const STATE_OPTIONS = Object.entries(US_STATES).map(([code, name]) => ({
+  code,
+  name,
+}));
 
 export default function CheckoutPage({
   params,
@@ -36,6 +45,7 @@ export default function CheckoutPage({
   const { id } = use(params);
   const bookId = id as Id<"books">;
   const router = useRouter();
+  const { user } = useUser();
 
   const book = useQuery(api.books.getBook, { bookId });
   const pages = useQuery(api.pages.getBookPages, { bookId });
@@ -45,12 +55,16 @@ export default function CheckoutPage({
   const [error, setError] = useState<string | null>(null);
   const [address, setAddress] = useState<ShippingAddress>({
     name: "",
-    street: "",
+    street1: "",
+    street2: "",
     city: "",
-    state: "",
-    zipCode: "",
-    country: "United States",
+    stateCode: "",
+    postalCode: "",
+    phoneNumber: "",
   });
+
+  // Get user email for order
+  const userEmail = user?.primaryEmailAddress?.emailAddress || "";
 
   // Loading state
   if (!book || !pages) {
@@ -72,6 +86,13 @@ export default function CheckoutPage({
     .flatMap((p: PageWithImages) => p.images)
     .find((img) => img?.cartoonUrl)?.cartoonUrl;
 
+  // Calculate printed page count
+  const stopCount = book.pageCount;
+  const storyPages = stopCount * 2;
+  const frontMatter = stopCount <= 9 ? 4 : 2;
+  const backMatter = stopCount <= 9 ? 4 : 2;
+  const printedPageCount = Math.max(24, frontMatter + storyPages + backMatter);
+
   const handleInputChange = (field: keyof ShippingAddress, value: string) => {
     setAddress((prev) => ({ ...prev, [field]: value }));
     setError(null);
@@ -82,7 +103,7 @@ export default function CheckoutPage({
       setError("Please enter your full name");
       return false;
     }
-    if (!address.street.trim()) {
+    if (!address.street1.trim()) {
       setError("Please enter your street address");
       return false;
     }
@@ -90,15 +111,48 @@ export default function CheckoutPage({
       setError("Please enter your city");
       return false;
     }
-    if (!address.state.trim()) {
-      setError("Please enter your state");
+    if (!address.stateCode) {
+      setError("Please select your state");
       return false;
     }
-    if (!address.zipCode.trim()) {
+    if (!address.postalCode.trim()) {
       setError("Please enter your ZIP code");
       return false;
     }
+    // Validate ZIP code format (5 digits or 5+4)
+    if (!/^\d{5}(-\d{4})?$/.test(address.postalCode.trim())) {
+      setError("Please enter a valid ZIP code (e.g., 10001 or 10001-1234)");
+      return false;
+    }
+    if (!address.phoneNumber.trim()) {
+      setError("Please enter your phone number (required for shipping)");
+      return false;
+    }
+    // Validate phone number (basic validation)
+    const phoneDigits = address.phoneNumber.replace(/\D/g, "");
+    if (phoneDigits.length < 10) {
+      setError("Please enter a valid phone number");
+      return false;
+    }
+    if (!userEmail) {
+      setError("Please sign in to complete your order");
+      return false;
+    }
     return true;
+  };
+
+  const formatPhoneNumber = (value: string): string => {
+    // Remove non-digits
+    const digits = value.replace(/\D/g, "");
+    // Format as (XXX) XXX-XXXX
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+  };
+
+  const handlePhoneChange = (value: string) => {
+    const formatted = formatPhoneNumber(value);
+    handleInputChange("phoneNumber", formatted);
   };
 
   const handleCheckout = async () => {
@@ -108,10 +162,19 @@ export default function CheckoutPage({
     setError(null);
 
     try {
-      // Create order in database
+      // Create order in database with new schema
       const orderId = await createOrder({
         bookId,
-        shippingAddress: address,
+        shippingAddress: {
+          name: address.name.trim(),
+          street1: address.street1.trim(),
+          street2: address.street2.trim() || undefined,
+          city: address.city.trim(),
+          stateCode: address.stateCode,
+          postalCode: address.postalCode.trim(),
+          phoneNumber: address.phoneNumber.replace(/\D/g, ""), // Send digits only
+        },
+        contactEmail: userEmail,
         price: BOOK_PRICE,
       });
 
@@ -193,9 +256,9 @@ export default function CheckoutPage({
                 </div>
                 <div className="flex-1">
                   <h3 className="text-white font-semibold text-lg">{book.title}</h3>
-                  <p className="text-purple-300 text-sm mt-1">Hardcover Children's Book</p>
-                  <p className="text-purple-400 text-sm">{pages.length} pages</p>
-                  <p className="text-purple-400 text-sm">8.5" × 8.5" Premium</p>
+                  <p className="text-purple-300 text-sm mt-1">Premium Hardcover</p>
+                  <p className="text-purple-400 text-sm">{printedPageCount} pages, full color</p>
+                  <p className="text-purple-400 text-sm">8.5" × 8.5" Square</p>
                 </div>
               </div>
 
@@ -208,7 +271,7 @@ export default function CheckoutPage({
                     "Disney-style AI illustrations",
                     "Your personalized story",
                     "Archival quality paper",
-                    "Free standard shipping",
+                    "Free shipping (US)",
                   ].map((item, i) => (
                     <li key={i} className="flex items-center gap-2 text-purple-200 text-sm">
                       <svg className="w-4 h-4 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -227,7 +290,7 @@ export default function CheckoutPage({
                   <span>${(BOOK_PRICE / 100).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-purple-300">
-                  <span>Shipping</span>
+                  <span>Shipping (Ground)</span>
                   <span className="text-green-400">FREE</span>
                 </div>
                 <div className="flex justify-between text-white text-xl font-bold pt-3 border-t border-white/10">
@@ -243,7 +306,7 @@ export default function CheckoutPage({
                   <div>
                     <p className="text-amber-200 font-medium">Estimated Delivery</p>
                     <p className="text-amber-300/80 text-sm">
-                      7-14 business days after payment
+                      10-14 business days (3-5 days production + 7-9 days shipping)
                     </p>
                   </div>
                 </div>
@@ -274,13 +337,14 @@ export default function CheckoutPage({
             transition={{ duration: 0.5, delay: 0.1 }}
           >
             <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 md:p-8 border border-white/10">
-              <h2 className="text-xl font-bold text-white mb-6">Shipping Address</h2>
+              <h2 className="text-xl font-bold text-white mb-2">Shipping Address</h2>
+              <p className="text-purple-300/60 text-sm mb-6">US addresses only</p>
 
               <div className="space-y-4">
                 {/* Full Name */}
                 <div>
                   <label className="block text-purple-200 text-sm font-medium mb-2">
-                    Full Name
+                    Full Name <span className="text-red-400">*</span>
                   </label>
                   <input
                     type="text"
@@ -294,13 +358,27 @@ export default function CheckoutPage({
                 {/* Street Address */}
                 <div>
                   <label className="block text-purple-200 text-sm font-medium mb-2">
-                    Street Address
+                    Street Address <span className="text-red-400">*</span>
                   </label>
                   <input
                     type="text"
-                    value={address.street}
-                    onChange={(e) => handleInputChange("street", e.target.value)}
-                    placeholder="123 Main Street, Apt 4B"
+                    value={address.street1}
+                    onChange={(e) => handleInputChange("street1", e.target.value)}
+                    placeholder="123 Main Street"
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                  />
+                </div>
+
+                {/* Apartment/Suite */}
+                <div>
+                  <label className="block text-purple-200 text-sm font-medium mb-2">
+                    Apartment, Suite, etc.
+                  </label>
+                  <input
+                    type="text"
+                    value={address.street2}
+                    onChange={(e) => handleInputChange("street2", e.target.value)}
+                    placeholder="Apt 4B (optional)"
                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                   />
                 </div>
@@ -309,7 +387,7 @@ export default function CheckoutPage({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-purple-200 text-sm font-medium mb-2">
-                      City
+                      City <span className="text-red-400">*</span>
                     </label>
                     <input
                       type="text"
@@ -321,47 +399,65 @@ export default function CheckoutPage({
                   </div>
                   <div>
                     <label className="block text-purple-200 text-sm font-medium mb-2">
-                      State
+                      State <span className="text-red-400">*</span>
                     </label>
-                    <input
-                      type="text"
-                      value={address.state}
-                      onChange={(e) => handleInputChange("state", e.target.value)}
-                      placeholder="NY"
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                    />
+                    <select
+                      value={address.stateCode}
+                      onChange={(e) => handleInputChange("stateCode", e.target.value)}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                    >
+                      <option value="">Select state</option>
+                      {STATE_OPTIONS.map((state) => (
+                        <option key={state.code} value={state.code}>
+                          {state.code} - {state.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
-                {/* ZIP & Country */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-purple-200 text-sm font-medium mb-2">
-                      ZIP Code
-                    </label>
-                    <input
-                      type="text"
-                      value={address.zipCode}
-                      onChange={(e) => handleInputChange("zipCode", e.target.value)}
-                      placeholder="10001"
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-purple-200 text-sm font-medium mb-2">
-                      Country
-                    </label>
-                    <select
-                      value={address.country}
-                      onChange={(e) => handleInputChange("country", e.target.value)}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                    >
-                      <option value="United States">United States</option>
-                      <option value="Canada">Canada</option>
-                      <option value="United Kingdom">United Kingdom</option>
-                      <option value="Australia">Australia</option>
-                    </select>
-                  </div>
+                {/* ZIP Code */}
+                <div>
+                  <label className="block text-purple-200 text-sm font-medium mb-2">
+                    ZIP Code <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={address.postalCode}
+                    onChange={(e) => handleInputChange("postalCode", e.target.value)}
+                    placeholder="10001"
+                    maxLength={10}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                  />
+                </div>
+
+                {/* Phone Number */}
+                <div>
+                  <label className="block text-purple-200 text-sm font-medium mb-2">
+                    Phone Number <span className="text-red-400">*</span>
+                    <span className="text-purple-400/60 font-normal ml-2">(for delivery updates)</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={address.phoneNumber}
+                    onChange={(e) => handlePhoneChange(e.target.value)}
+                    placeholder="(555) 123-4567"
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                  />
+                </div>
+
+                {/* Contact Email (read-only) */}
+                <div>
+                  <label className="block text-purple-200 text-sm font-medium mb-2">
+                    Contact Email
+                  </label>
+                  <input
+                    type="email"
+                    value={userEmail}
+                    disabled
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-purple-300 cursor-not-allowed"
+                  />
+                  <p className="text-purple-400/60 text-xs mt-1">Order updates will be sent to this email</p>
                 </div>
 
                 {/* Error Message */}

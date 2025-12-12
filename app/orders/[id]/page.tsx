@@ -269,20 +269,40 @@ export default function OrderPage({
             <h4 className="text-white font-medium mb-3">Shipping To</h4>
             <div className="text-purple-300 text-sm space-y-1">
               <p className="font-medium text-purple-200">{order.shippingAddress.name}</p>
-              <p>{order.shippingAddress.street}</p>
+              <p>{order.shippingAddress.street1}</p>
+              {order.shippingAddress.street2 && <p>{order.shippingAddress.street2}</p>}
               <p>
-                {order.shippingAddress.city}, {order.shippingAddress.state}{" "}
-                {order.shippingAddress.zipCode}
+                {order.shippingAddress.city}, {order.shippingAddress.stateCode}{" "}
+                {order.shippingAddress.postalCode}
               </p>
-              <p>{order.shippingAddress.country}</p>
+              <p>United States</p>
             </div>
           </div>
 
-          {/* Tracking Number */}
-          {order.luluOrderId && (
+          {/* Tracking Info */}
+          {order.trackingNumber && (
             <div className="mt-6 p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl">
               <p className="text-purple-200 text-sm font-medium">Tracking Number</p>
-              <p className="text-white font-mono">{order.luluOrderId}</p>
+              {order.trackingUrl ? (
+                <a
+                  href={order.trackingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white font-mono hover:text-purple-300 underline"
+                >
+                  {order.trackingNumber}
+                </a>
+              ) : (
+                <p className="text-white font-mono">{order.trackingNumber}</p>
+              )}
+            </div>
+          )}
+
+          {/* Lulu Print Job ID */}
+          {order.luluPrintJobId && !order.trackingNumber && (
+            <div className="mt-6 p-4 bg-slate-700/30 border border-slate-600/20 rounded-xl">
+              <p className="text-purple-200 text-sm font-medium">Print Job ID</p>
+              <p className="text-white font-mono text-sm">{order.luluPrintJobId}</p>
             </div>
           )}
         </motion.div>

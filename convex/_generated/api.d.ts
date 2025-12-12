@@ -10,8 +10,11 @@
 
 import type * as bakeTextOverlay from "../bakeTextOverlay.js";
 import type * as books from "../books.js";
+import type * as crons from "../crons.js";
+import type * as generatePdf from "../generatePdf.js";
 import type * as http from "../http.js";
 import type * as images from "../images.js";
+import type * as lulu from "../lulu.js";
 import type * as orders from "../orders.js";
 import type * as pages from "../pages.js";
 import type * as textOverlays from "../textOverlays.js";
@@ -27,8 +30,11 @@ import type {
 declare const fullApi: ApiFromModules<{
   bakeTextOverlay: typeof bakeTextOverlay;
   books: typeof books;
+  crons: typeof crons;
+  generatePdf: typeof generatePdf;
   http: typeof http;
   images: typeof images;
+  lulu: typeof lulu;
   orders: typeof orders;
   pages: typeof pages;
   textOverlays: typeof textOverlays;

@@ -12,7 +12,7 @@ export default defineSchema({
   books: defineTable({
     userId: v.id("users"),
     title: v.string(),
-    pageCount: v.number(),
+    pageCount: v.number(), // Number of "stops" (each stop = 2 printed pages)
     status: v.union(
       v.literal("draft"),
       v.literal("generating"),
@@ -37,17 +37,50 @@ export default defineSchema({
       ),
       dedication: v.optional(v.string()),
     })),
+
+    // === PRINT FIELDS (NEW) ===
+    // Print specifications
+    printFormat: v.optional(v.literal("SQUARE_85_HARDCOVER")), // Book format
+    podPackageId: v.optional(v.string()), // Lulu POD package ID
+
+    // Print status tracking
+    printStatus: v.optional(v.union(
+      v.literal("editing"),          // Still working on book
+      v.literal("ready_for_pdf"),    // All images complete
+      v.literal("generating_pdfs"),  // Creating print files
+      v.literal("pdfs_ready"),       // Ready to order
+      v.literal("submitted"),        // Sent to Lulu
+    )),
+
+    // Generated PDFs stored in Convex
+    interiorPdfId: v.optional(v.id("_storage")),
+    coverPdfId: v.optional(v.id("_storage")),
+
+    // Calculated printed page count (stops * 2 + front/back matter)
+    printedPageCount: v.optional(v.number()),
+
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
     .index("by_status", ["status"]),
 
+  // Pages table - each "page" represents one "stop" on the adventure
+  // Each stop = 1 spread = 2 printed pages
   pages: defineTable({
     bookId: v.id("books"),
-    pageNumber: v.number(),
-    title: v.optional(v.string()), // Stop/location name
-    storyText: v.optional(v.string()), // User-written text
+    pageNumber: v.number(), // Stop number (1-14)
+    title: v.optional(v.string()), // Location name (e.g., "Magic Kingdom")
+    storyText: v.optional(v.string()), // User-written narrative text
+
+    // === PRINT FIELDS (NEW) ===
+    // Layout type for this spread
+    spreadType: v.optional(v.union(
+      v.literal("single_image"),   // One image fills the spread
+      v.literal("two_images"),     // One image per page
+      v.literal("image_and_text"), // Image on one page, text on other
+    )),
+
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -82,6 +115,23 @@ export default defineSchema({
       originalHeight: v.number(),
     })),
     order: v.number(), // For 1-3 images per page ordering
+
+    // === PRINT FIELDS (NEW) ===
+    // Print-ready image (upscaled to 300 DPI if needed)
+    printReadyImageId: v.optional(v.id("_storage")),
+    printDimensions: v.optional(v.object({
+      width: v.number(),        // Pixels
+      height: v.number(),       // Pixels
+      originalWidth: v.number(), // Before upscaling
+      originalHeight: v.number(),
+    })),
+    printStatus: v.optional(v.union(
+      v.literal("pending"),       // Not checked yet
+      v.literal("ready"),         // Good for print
+      v.literal("upscaled"),      // Was upscaled for print
+      v.literal("too_small"),     // Cannot meet print quality
+    )),
+
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -130,33 +180,65 @@ export default defineSchema({
   })
     .index("by_image", ["imageId"]),
 
+  // Print orders - tracks Lulu integration
   printOrders: defineTable({
     bookId: v.id("books"),
-    luluOrderId: v.optional(v.string()),
+
+    // === LULU INTEGRATION (UPDATED) ===
+    luluPrintJobId: v.optional(v.string()), // Lulu's print job ID
+    luluStatus: v.optional(v.string()),     // Raw status from Lulu API
+
+    // Our status tracking
     status: v.union(
       v.literal("pending_payment"),
       v.literal("payment_received"),
-      v.literal("generating_pdf"),
-      v.literal("submitted_to_lulu"),
-      v.literal("printing"),
+      v.literal("generating_pdfs"),
+      v.literal("submitting_to_lulu"),
+      v.literal("submitted"),
+      v.literal("in_production"),
       v.literal("shipped"),
       v.literal("delivered"),
       v.literal("failed")
     ),
-    pdfStorageId: v.optional(v.id("_storage")), // Print-ready PDF in Convex storage
-    cost: v.number(), // In cents
-    price: v.number(), // In cents
+
+    // PDF URLs for Lulu to fetch
+    interiorPdfUrl: v.optional(v.string()),
+    coverPdfUrl: v.optional(v.string()),
+
+    // Pricing
+    cost: v.number(),  // What we pay Lulu (in cents)
+    price: v.number(), // What customer pays (in cents) - $44.99 = 4499
+
+    // Shipping (US only for MVP)
     shippingAddress: v.object({
       name: v.string(),
-      street: v.string(),
+      street1: v.string(),
+      street2: v.optional(v.string()),
       city: v.string(),
-      state: v.string(),
-      zipCode: v.string(),
-      country: v.string(),
+      stateCode: v.string(),      // 2-letter state code
+      postalCode: v.string(),
+      countryCode: v.literal("US"), // US only for MVP
+      phoneNumber: v.string(),
     }),
+    contactEmail: v.string(),
+
+    // Tracking
+    trackingNumber: v.optional(v.string()),
+    trackingUrl: v.optional(v.string()),
+
+    // Stripe
+    stripeSessionId: v.optional(v.string()),
+    stripePaymentIntentId: v.optional(v.string()),
+
+    // Timestamps
     createdAt: v.number(),
     updatedAt: v.number(),
+    paidAt: v.optional(v.number()),
+    submittedAt: v.optional(v.number()),
+    shippedAt: v.optional(v.number()),
+    deliveredAt: v.optional(v.number()),
   })
     .index("by_book", ["bookId"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_lulu_job", ["luluPrintJobId"]),
 });

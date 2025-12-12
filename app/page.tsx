@@ -407,7 +407,7 @@ export default function Home() {
               {
                 emoji: "📸",
                 title: "Upload Photos",
-                description: "Select 10-20 vacation photos—one for each page of your story.",
+                description: "Select 10-20 vacation photos—one for each stop on your adventure.",
               },
               {
                 emoji: "🎨",

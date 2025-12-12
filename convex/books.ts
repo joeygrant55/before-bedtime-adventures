@@ -260,3 +260,131 @@ export const updateCoverDesign = mutation({
     });
   },
 });
+
+// === PRINT-RELATED MUTATIONS ===
+
+// Update print status
+export const updatePrintStatus = mutation({
+  args: {
+    bookId: v.id("books"),
+    printStatus: v.union(
+      v.literal("editing"),
+      v.literal("ready_for_pdf"),
+      v.literal("generating_pdfs"),
+      v.literal("pdfs_ready"),
+      v.literal("submitted")
+    ),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.bookId, {
+      printStatus: args.printStatus,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+// Update print PDFs
+export const updatePrintPdf = mutation({
+  args: {
+    bookId: v.id("books"),
+    interiorPdfId: v.optional(v.id("_storage")),
+    coverPdfId: v.optional(v.id("_storage")),
+  },
+  handler: async (ctx, args) => {
+    const updates: Record<string, unknown> = {
+      updatedAt: Date.now(),
+    };
+
+    if (args.interiorPdfId !== undefined) {
+      updates.interiorPdfId = args.interiorPdfId;
+    }
+    if (args.coverPdfId !== undefined) {
+      updates.coverPdfId = args.coverPdfId;
+    }
+
+    await ctx.db.patch(args.bookId, updates);
+  },
+});
+
+// Initialize print format for a book
+export const initializePrintFormat = mutation({
+  args: {
+    bookId: v.id("books"),
+  },
+  handler: async (ctx, args) => {
+    const book = await ctx.db.get(args.bookId);
+    if (!book) throw new Error("Book not found");
+
+    // Calculate printed page count
+    const stopCount = book.pageCount;
+    const storyPages = stopCount * 2;
+    const frontMatter = stopCount <= 9 ? 4 : 2;
+    const backMatter = stopCount <= 9 ? 4 : 2;
+    const printedPageCount = Math.max(24, frontMatter + storyPages + backMatter);
+
+    await ctx.db.patch(args.bookId, {
+      printFormat: "SQUARE_85_HARDCOVER",
+      podPackageId: "0850X0850FCPRECW080CW444MXX",
+      printedPageCount,
+      printStatus: "editing",
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+// Check if book is ready for print (all images complete)
+export const checkPrintReadiness = query({
+  args: { bookId: v.id("books") },
+  handler: async (ctx, args) => {
+    const book = await ctx.db.get(args.bookId);
+    if (!book) return { ready: false, reason: "Book not found" };
+
+    // Get all pages
+    const pages = await ctx.db
+      .query("pages")
+      .withIndex("by_book", (q) => q.eq("bookId", args.bookId))
+      .collect();
+
+    // Check if we have at least some pages with images
+    let totalImages = 0;
+    let completedImages = 0;
+    let hasAnyImages = false;
+
+    for (const page of pages) {
+      const images = await ctx.db
+        .query("images")
+        .withIndex("by_page", (q) => q.eq("pageId", page._id))
+        .collect();
+
+      for (const image of images) {
+        hasAnyImages = true;
+        totalImages++;
+        if (image.generationStatus === "completed") {
+          completedImages++;
+        }
+      }
+    }
+
+    if (!hasAnyImages) {
+      return { ready: false, reason: "No images uploaded yet" };
+    }
+
+    if (completedImages < totalImages) {
+      return {
+        ready: false,
+        reason: `${completedImages}/${totalImages} images ready`,
+        progress: { completed: completedImages, total: totalImages },
+      };
+    }
+
+    // Check cover design
+    if (!book.coverDesign?.title) {
+      return { ready: false, reason: "Cover title not set" };
+    }
+
+    return {
+      ready: true,
+      progress: { completed: completedImages, total: totalImages },
+    };
+  },
+});
