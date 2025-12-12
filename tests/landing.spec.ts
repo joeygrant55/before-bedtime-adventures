@@ -39,7 +39,8 @@ test.describe('Landing Page', () => {
     });
 
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('load');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
     // Filter out known acceptable errors (like Clerk dev warnings)
     const criticalErrors = errors.filter(
