@@ -74,3 +74,37 @@ CLERK_SECRET_KEY=
 - Supported formats: JPEG, PNG only
 - Images converted to base64 for Gemini API in chunks (8192 bytes) to avoid memory issues
 - Gemini responses contain `inlineData.data` (base64) which gets stored back to Convex Storage
+
+## Git Workflow (IMPORTANT)
+
+This project has git hooks to prevent lost work. Follow these practices:
+
+### Before Starting Work
+```bash
+git status                    # Check for uncommitted changes
+git fetch origin              # Get latest from remote
+git log origin/main..HEAD     # See any unpushed local commits
+```
+
+### After Making Changes
+```bash
+git add .
+git commit -m "description"   # Post-commit hook will auto-push
+```
+
+### NEVER Do These Without Checking First
+- `git reset --hard` - Use `git stash` instead
+- `git rebase` - The pre-rebase hook will warn about unpushed commits
+- `git pull --rebase` - Can orphan local commits if conflicts occur
+
+### If Something Goes Wrong
+```bash
+git reflog                    # Shows all recent HEAD movements
+git show <commit-hash>        # Inspect orphaned commits
+git cherry-pick <commit>      # Recover specific commits
+```
+
+### Installed Git Hooks
+- **post-commit**: Auto-pushes after each commit
+- **pre-rebase**: Warns about unpushed commits before rebasing
+- **pre-push**: Warns before force pushing
