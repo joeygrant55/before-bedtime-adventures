@@ -11,16 +11,32 @@
     "build:next": "next build",
     "start": "next start",
     "lint": "next lint",
-    "convex": "convex"
+    "convex": "convex",
+    "email:dev": "email dev -p 3001 --dir emails",
+    "email:export": "email export --dir emails --outDir out/emails",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "test:unit": "vitest run tests/unit",
+    "test:components": "vitest run tests/components",
+    "test:integration": "vitest run tests/integration",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "playwright:install": "playwright install"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.36.0",
     "@google/generative-ai": "^0.24.1",
+    "@react-email/components": "^1.0.6",
     "@stripe/stripe-js": "^8.5.3",
     "@tailwindcss/postcss": "^4.1.17",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "@vercel/analytics": "^1.6.1",
+    "@vercel/speed-insights": "^1.3.1",
     "autoprefixer": "^10.4.22",
     "clsx": "^2.1.1",
     "convex": "^1.30.0",
@@ -33,6 +49,8 @@
     "postcss": "^8.5.6",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
+    "react-email": "^5.2.5",
+    "resend": "^6.8.0",
     "stripe": "^20.0.0",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.17",
@@ -40,6 +58,13 @@
     "usehooks-ts": "^3.1.1"
   },
   "devDependencies": {
-    "npm-run-all": "^4.1.5"
+    "@playwright/test": "^1.58.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@vitejs/plugin-react": "^5.1.2",
+    "jsdom": "^27.4.0",
+    "npm-run-all": "^4.1.5",
+    "vitest": "^4.0.18"
   }
 }

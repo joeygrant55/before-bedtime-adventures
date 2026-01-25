@@ -1,14 +1,19 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id, Doc } from "@/convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { US_STATES } from "@/lib/printSpecs";
+import { useToast } from "@/components/ui/Toast";
+import { trackCheckoutStarted, trackCheckoutAddressEntered, trackOrderCreated } from "@/lib/analytics";
+import { FullPageSkeleton, CheckoutFormSkeleton, InlineSpinner } from "@/components/ui/Skeleton";
+import { ErrorBoundary, ApiError, FieldError } from "@/components/ui/ErrorBoundary";
+import { BookNotFoundEmpty } from "@/components/ui/EmptyStates";
 
 type ImageWithUrls = Doc<"images"> & {
   originalUrl: string | null;
@@ -29,6 +34,16 @@ interface ShippingAddress {
   phoneNumber: string;
 }
 
+interface FormErrors {
+  name?: string;
+  street1?: string;
+  city?: string;
+  stateCode?: string;
+  postalCode?: string;
+  phoneNumber?: string;
+  email?: string;
+}
+
 const BOOK_PRICE = 4999; // $49.99 in cents
 
 // US state options for dropdown
@@ -37,22 +52,19 @@ const STATE_OPTIONS = Object.entries(US_STATES).map(([code, name]) => ({
   name,
 }));
 
-export default function CheckoutPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = use(params);
-  const bookId = id as Id<"books">;
+function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
   const router = useRouter();
   const { user } = useUser();
+  const { success, error: showError } = useToast();
 
   const book = useQuery(api.books.getBook, { bookId });
   const pages = useQuery(api.pages.getBookPages, { bookId });
   const createOrder = useMutation(api.orders.createOrder);
 
   const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [address, setAddress] = useState<ShippingAddress>({
     name: "",
     street1: "",
@@ -66,85 +78,86 @@ export default function CheckoutPage({
   // Get user email for order
   const userEmail = user?.primaryEmailAddress?.emailAddress || "";
 
-  // Loading state
-  if (!book || !pages) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="relative w-16 h-16 mx-auto mb-4">
-            <div className="absolute inset-0 border-4 border-purple-500/30 rounded-full" />
-            <div className="absolute inset-0 border-4 border-purple-500 rounded-full border-t-transparent animate-spin" />
-          </div>
-          <p className="text-purple-300">Loading checkout...</p>
-        </div>
-      </div>
-    );
-  }
+  // Pre-fill name from user profile
+  useEffect(() => {
+    if (user?.fullName && !address.name) {
+      setAddress(prev => ({ ...prev, name: user.fullName || "" }));
+    }
+  }, [user?.fullName, address.name]);
 
-  // Get preview image (first completed cartoon)
-  const previewImage = pages
-    .flatMap((p: PageWithImages) => p.images)
-    .find((img) => img?.cartoonUrl)?.cartoonUrl;
+  // Track checkout started when page loads
+  useEffect(() => {
+    if (book) {
+      trackCheckoutStarted(bookId, BOOK_PRICE);
+    }
+  }, [book, bookId]);
 
-  // Calculate printed page count
-  const stopCount = book.pageCount;
-  const storyPages = stopCount * 2;
-  const frontMatter = stopCount <= 9 ? 4 : 2;
-  const backMatter = stopCount <= 9 ? 4 : 2;
-  const printedPageCount = Math.max(24, frontMatter + storyPages + backMatter);
+  // Validate a single field
+  const validateField = useCallback((field: keyof ShippingAddress, value: string): string | undefined => {
+    switch (field) {
+      case "name":
+        if (!value.trim()) return "Full name is required";
+        if (value.trim().length < 2) return "Name must be at least 2 characters";
+        break;
+      case "street1":
+        if (!value.trim()) return "Street address is required";
+        break;
+      case "city":
+        if (!value.trim()) return "City is required";
+        break;
+      case "stateCode":
+        if (!value) return "Please select a state";
+        break;
+      case "postalCode":
+        if (!value.trim()) return "ZIP code is required";
+        if (!/^\d{5}(-\d{4})?$/.test(value.trim())) return "Enter a valid ZIP code (e.g., 10001)";
+        break;
+      case "phoneNumber":
+        const digits = value.replace(/\D/g, "");
+        if (!value.trim()) return "Phone number is required for shipping";
+        if (digits.length < 10) return "Enter a valid 10-digit phone number";
+        break;
+    }
+    return undefined;
+  }, []);
+
+  // Validate all fields
+  const validateForm = useCallback((): boolean => {
+    const errors: FormErrors = {};
+    
+    (Object.keys(address) as (keyof ShippingAddress)[]).forEach(field => {
+      if (field === "street2") return; // Optional
+      const error = validateField(field, address[field]);
+      if (error) errors[field] = error;
+    });
+
+    if (!userEmail) {
+      errors.email = "Please sign in to complete your order";
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  }, [address, userEmail, validateField]);
 
   const handleInputChange = (field: keyof ShippingAddress, value: string) => {
     setAddress((prev) => ({ ...prev, [field]: value }));
-    setError(null);
+    setSubmitError(null);
+    
+    // Validate on change if already touched
+    if (touched[field]) {
+      const error = validateField(field, value);
+      setFormErrors(prev => ({ ...prev, [field]: error }));
+    }
   };
 
-  const validateForm = (): boolean => {
-    if (!address.name.trim()) {
-      setError("Please enter your full name");
-      return false;
-    }
-    if (!address.street1.trim()) {
-      setError("Please enter your street address");
-      return false;
-    }
-    if (!address.city.trim()) {
-      setError("Please enter your city");
-      return false;
-    }
-    if (!address.stateCode) {
-      setError("Please select your state");
-      return false;
-    }
-    if (!address.postalCode.trim()) {
-      setError("Please enter your ZIP code");
-      return false;
-    }
-    // Validate ZIP code format (5 digits or 5+4)
-    if (!/^\d{5}(-\d{4})?$/.test(address.postalCode.trim())) {
-      setError("Please enter a valid ZIP code (e.g., 10001 or 10001-1234)");
-      return false;
-    }
-    if (!address.phoneNumber.trim()) {
-      setError("Please enter your phone number (required for shipping)");
-      return false;
-    }
-    // Validate phone number (basic validation)
-    const phoneDigits = address.phoneNumber.replace(/\D/g, "");
-    if (phoneDigits.length < 10) {
-      setError("Please enter a valid phone number");
-      return false;
-    }
-    if (!userEmail) {
-      setError("Please sign in to complete your order");
-      return false;
-    }
-    return true;
+  const handleBlur = (field: keyof ShippingAddress) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    const error = validateField(field, address[field]);
+    setFormErrors(prev => ({ ...prev, [field]: error }));
   };
 
   const formatPhoneNumber = (value: string): string => {
-    // Remove non-digits
     const digits = value.replace(/\D/g, "");
-    // Format as (XXX) XXX-XXXX
     if (digits.length <= 3) return digits;
     if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
     return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
@@ -156,12 +169,28 @@ export default function CheckoutPage({
   };
 
   const handleCheckout = async () => {
-    if (!validateForm()) return;
+    // Mark all fields as touched
+    setTouched({
+      name: true,
+      street1: true,
+      city: true,
+      stateCode: true,
+      postalCode: true,
+      phoneNumber: true,
+    });
+
+    if (!validateForm()) {
+      showError("Please fix the errors in the form");
+      return;
+    }
 
     setIsProcessing(true);
-    setError(null);
+    setSubmitError(null);
 
     try {
+      // Track checkout address entered
+      trackCheckoutAddressEntered(bookId);
+
       // Create order in database with new schema
       const orderId = await createOrder({
         bookId,
@@ -178,6 +207,9 @@ export default function CheckoutPage({
         price: BOOK_PRICE,
       });
 
+      // Track order creation
+      trackOrderCreated(orderId, bookId, BOOK_PRICE);
+
       // Create Stripe checkout session
       const response = await fetch("/api/stripe/create-session", {
         method: "POST",
@@ -185,7 +217,7 @@ export default function CheckoutPage({
         body: JSON.stringify({
           bookId,
           orderId,
-          bookTitle: book.title,
+          bookTitle: book?.title || "Storybook",
           price: BOOK_PRICE,
         }),
       });
@@ -196,19 +228,51 @@ export default function CheckoutPage({
         throw new Error(data.error || "Failed to create checkout session");
       }
 
+      success("Redirecting to secure payment...");
+      
       // Redirect to Stripe Checkout
       window.location.href = data.url;
     } catch (err) {
       console.error("Checkout error:", err);
-      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+      setSubmitError(message);
+      showError(message);
       setIsProcessing(false);
     }
   };
 
+  // Loading state
+  if (!book || !pages) {
+    return <FullPageSkeleton message="Loading checkout..." />;
+  }
+
+  // Book not found
+  if (book === null) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <BookNotFoundEmpty />
+      </div>
+    );
+  }
+
+  // Get preview image (first completed cartoon)
+  const previewImage = pages
+    .flatMap((p: PageWithImages) => p.images)
+    .find((img) => img?.cartoonUrl)?.cartoonUrl;
+
+  // Calculate printed page count
+  const stopCount = book.pageCount;
+  const storyPages = stopCount * 2;
+  const frontMatter = stopCount <= 9 ? 4 : 2;
+  const backMatter = stopCount <= 9 ? 4 : 2;
+  const printedPageCount = Math.max(24, frontMatter + storyPages + backMatter);
+
+  const hasErrors = Object.keys(formErrors).some(key => formErrors[key as keyof FormErrors]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* Ambient effects */}
-      <div className="fixed inset-0 pointer-events-none">
+      <div className="fixed inset-0 pointer-events-none" aria-hidden="true">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
       </div>
@@ -218,15 +282,15 @@ export default function CheckoutPage({
         <div className="flex items-center justify-between mb-8">
           <Link
             href={`/books/${bookId}/preview`}
-            className="flex items-center gap-2 text-purple-300 hover:text-white transition-colors"
+            className="flex items-center gap-2 text-purple-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 rounded-lg p-1"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Back to Preview
+            <span>Back to Preview</span>
           </Link>
-          <div className="flex items-center gap-2 text-green-400">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="flex items-center gap-2 text-green-400" aria-label="Secure checkout">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
             <span className="text-sm font-medium">Secure Checkout</span>
@@ -247,9 +311,14 @@ export default function CheckoutPage({
               <div className="flex gap-4 mb-6">
                 <div className="w-24 h-32 bg-gradient-to-br from-purple-600 to-purple-800 rounded-lg shadow-lg overflow-hidden flex-shrink-0">
                   {previewImage ? (
-                    <img src={previewImage} alt="Book preview" className="w-full h-full object-cover" />
+                    <img 
+                      src={previewImage} 
+                      alt={`Preview of ${book.title}`} 
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-purple-300 text-3xl">
+                    <div className="w-full h-full flex items-center justify-center text-purple-300 text-3xl" aria-hidden="true">
                       📚
                     </div>
                   )}
@@ -265,7 +334,7 @@ export default function CheckoutPage({
               {/* What's Included */}
               <div className="border-t border-white/10 pt-6 mb-6">
                 <h4 className="text-white font-medium mb-3">What's Included</h4>
-                <ul className="space-y-2">
+                <ul className="space-y-2" aria-label="Order includes">
                   {[
                     "Premium hardcover binding",
                     "Disney-style AI illustrations",
@@ -274,7 +343,7 @@ export default function CheckoutPage({
                     "Free shipping (US)",
                   ].map((item, i) => (
                     <li key={i} className="flex items-center gap-2 text-purple-200 text-sm">
-                      <svg className="w-4 h-4 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                       {item}
@@ -302,7 +371,7 @@ export default function CheckoutPage({
               {/* Delivery Info */}
               <div className="mt-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
                 <div className="flex items-start gap-3">
-                  <span className="text-2xl">📦</span>
+                  <span className="text-2xl" aria-hidden="true">📦</span>
                   <div>
                     <p className="text-amber-200 font-medium">Estimated Delivery</p>
                     <p className="text-amber-300/80 text-sm">
@@ -316,13 +385,13 @@ export default function CheckoutPage({
             {/* Trust Badges */}
             <div className="mt-6 flex items-center justify-center gap-6 text-purple-400 text-sm">
               <div className="flex items-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
                 <span>Secure Payment</span>
               </div>
               <div className="flex items-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                 </svg>
                 <span>Powered by Stripe</span>
@@ -336,49 +405,73 @@ export default function CheckoutPage({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
           >
-            <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 md:p-8 border border-white/10">
+            <form 
+              onSubmit={(e) => { e.preventDefault(); handleCheckout(); }}
+              className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 md:p-8 border border-white/10"
+              noValidate
+            >
               <h2 className="text-xl font-bold text-white mb-2">Shipping Address</h2>
               <p className="text-purple-300/60 text-sm mb-6">US addresses only</p>
 
               <div className="space-y-4">
                 {/* Full Name */}
                 <div>
-                  <label className="block text-purple-200 text-sm font-medium mb-2">
-                    Full Name <span className="text-red-400">*</span>
+                  <label htmlFor="name" className="block text-purple-200 text-sm font-medium mb-2">
+                    Full Name <span className="text-red-400" aria-hidden="true">*</span>
                   </label>
                   <input
+                    id="name"
                     type="text"
                     value={address.name}
                     onChange={(e) => handleInputChange("name", e.target.value)}
+                    onBlur={() => handleBlur("name")}
                     placeholder="John Smith"
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                    autoComplete="name"
+                    aria-required="true"
+                    aria-invalid={!!formErrors.name}
+                    aria-describedby={formErrors.name ? "name-error" : undefined}
+                    className={`w-full px-4 py-3 bg-white/5 border rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${
+                      formErrors.name ? "border-red-500/50" : "border-white/10"
+                    }`}
                   />
+                  <FieldError error={formErrors.name} id="name-error" />
                 </div>
 
                 {/* Street Address */}
                 <div>
-                  <label className="block text-purple-200 text-sm font-medium mb-2">
-                    Street Address <span className="text-red-400">*</span>
+                  <label htmlFor="street1" className="block text-purple-200 text-sm font-medium mb-2">
+                    Street Address <span className="text-red-400" aria-hidden="true">*</span>
                   </label>
                   <input
+                    id="street1"
                     type="text"
                     value={address.street1}
                     onChange={(e) => handleInputChange("street1", e.target.value)}
+                    onBlur={() => handleBlur("street1")}
                     placeholder="123 Main Street"
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                    autoComplete="address-line1"
+                    aria-required="true"
+                    aria-invalid={!!formErrors.street1}
+                    aria-describedby={formErrors.street1 ? "street1-error" : undefined}
+                    className={`w-full px-4 py-3 bg-white/5 border rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${
+                      formErrors.street1 ? "border-red-500/50" : "border-white/10"
+                    }`}
                   />
+                  <FieldError error={formErrors.street1} id="street1-error" />
                 </div>
 
                 {/* Apartment/Suite */}
                 <div>
-                  <label className="block text-purple-200 text-sm font-medium mb-2">
-                    Apartment, Suite, etc.
+                  <label htmlFor="street2" className="block text-purple-200 text-sm font-medium mb-2">
+                    Apartment, Suite, etc. <span className="text-purple-400/60">(optional)</span>
                   </label>
                   <input
+                    id="street2"
                     type="text"
                     value={address.street2}
                     onChange={(e) => handleInputChange("street2", e.target.value)}
-                    placeholder="Apt 4B (optional)"
+                    placeholder="Apt 4B"
+                    autoComplete="address-line2"
                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                   />
                 </div>
@@ -386,25 +479,42 @@ export default function CheckoutPage({
                 {/* City & State */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-purple-200 text-sm font-medium mb-2">
-                      City <span className="text-red-400">*</span>
+                    <label htmlFor="city" className="block text-purple-200 text-sm font-medium mb-2">
+                      City <span className="text-red-400" aria-hidden="true">*</span>
                     </label>
                     <input
+                      id="city"
                       type="text"
                       value={address.city}
                       onChange={(e) => handleInputChange("city", e.target.value)}
+                      onBlur={() => handleBlur("city")}
                       placeholder="New York"
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                      autoComplete="address-level2"
+                      aria-required="true"
+                      aria-invalid={!!formErrors.city}
+                      aria-describedby={formErrors.city ? "city-error" : undefined}
+                      className={`w-full px-4 py-3 bg-white/5 border rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${
+                        formErrors.city ? "border-red-500/50" : "border-white/10"
+                      }`}
                     />
+                    <FieldError error={formErrors.city} id="city-error" />
                   </div>
                   <div>
-                    <label className="block text-purple-200 text-sm font-medium mb-2">
-                      State <span className="text-red-400">*</span>
+                    <label htmlFor="stateCode" className="block text-purple-200 text-sm font-medium mb-2">
+                      State <span className="text-red-400" aria-hidden="true">*</span>
                     </label>
                     <select
+                      id="stateCode"
                       value={address.stateCode}
                       onChange={(e) => handleInputChange("stateCode", e.target.value)}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                      onBlur={() => handleBlur("stateCode")}
+                      autoComplete="address-level1"
+                      aria-required="true"
+                      aria-invalid={!!formErrors.stateCode}
+                      aria-describedby={formErrors.stateCode ? "state-error" : undefined}
+                      className={`w-full px-4 py-3 bg-white/5 border rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${
+                        formErrors.stateCode ? "border-red-500/50" : "border-white/10"
+                      }`}
                     >
                       <option value="">Select state</option>
                       {STATE_OPTIONS.map((state) => (
@@ -413,81 +523,108 @@ export default function CheckoutPage({
                         </option>
                       ))}
                     </select>
+                    <FieldError error={formErrors.stateCode} id="state-error" />
                   </div>
                 </div>
 
                 {/* ZIP Code */}
                 <div>
-                  <label className="block text-purple-200 text-sm font-medium mb-2">
-                    ZIP Code <span className="text-red-400">*</span>
+                  <label htmlFor="postalCode" className="block text-purple-200 text-sm font-medium mb-2">
+                    ZIP Code <span className="text-red-400" aria-hidden="true">*</span>
                   </label>
                   <input
+                    id="postalCode"
                     type="text"
+                    inputMode="numeric"
                     value={address.postalCode}
                     onChange={(e) => handleInputChange("postalCode", e.target.value)}
+                    onBlur={() => handleBlur("postalCode")}
                     placeholder="10001"
                     maxLength={10}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                    autoComplete="postal-code"
+                    aria-required="true"
+                    aria-invalid={!!formErrors.postalCode}
+                    aria-describedby={formErrors.postalCode ? "zip-error" : undefined}
+                    className={`w-full px-4 py-3 bg-white/5 border rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${
+                      formErrors.postalCode ? "border-red-500/50" : "border-white/10"
+                    }`}
                   />
+                  <FieldError error={formErrors.postalCode} id="zip-error" />
                 </div>
 
                 {/* Phone Number */}
                 <div>
-                  <label className="block text-purple-200 text-sm font-medium mb-2">
-                    Phone Number <span className="text-red-400">*</span>
+                  <label htmlFor="phoneNumber" className="block text-purple-200 text-sm font-medium mb-2">
+                    Phone Number <span className="text-red-400" aria-hidden="true">*</span>
                     <span className="text-purple-400/60 font-normal ml-2">(for delivery updates)</span>
                   </label>
                   <input
+                    id="phoneNumber"
                     type="tel"
+                    inputMode="tel"
                     value={address.phoneNumber}
                     onChange={(e) => handlePhoneChange(e.target.value)}
+                    onBlur={() => handleBlur("phoneNumber")}
                     placeholder="(555) 123-4567"
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                    autoComplete="tel"
+                    aria-required="true"
+                    aria-invalid={!!formErrors.phoneNumber}
+                    aria-describedby={formErrors.phoneNumber ? "phone-error" : undefined}
+                    className={`w-full px-4 py-3 bg-white/5 border rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${
+                      formErrors.phoneNumber ? "border-red-500/50" : "border-white/10"
+                    }`}
                   />
+                  <FieldError error={formErrors.phoneNumber} id="phone-error" />
                 </div>
 
                 {/* Contact Email (read-only) */}
                 <div>
-                  <label className="block text-purple-200 text-sm font-medium mb-2">
+                  <label htmlFor="email" className="block text-purple-200 text-sm font-medium mb-2">
                     Contact Email
                   </label>
                   <input
+                    id="email"
                     type="email"
                     value={userEmail}
                     disabled
+                    aria-describedby="email-hint"
                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-purple-300 cursor-not-allowed"
                   />
-                  <p className="text-purple-400/60 text-xs mt-1">Order updates will be sent to this email</p>
+                  <p id="email-hint" className="text-purple-400/60 text-xs mt-1">Order updates will be sent to this email</p>
+                  <FieldError error={formErrors.email} />
                 </div>
 
-                {/* Error Message */}
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-300 text-sm"
-                  >
-                    {error}
-                  </motion.div>
-                )}
+                {/* Submit Error */}
+                <AnimatePresence>
+                  {submitError && (
+                    <ApiError 
+                      error={submitError} 
+                      onRetry={() => {
+                        setSubmitError(null);
+                        handleCheckout();
+                      }} 
+                    />
+                  )}
+                </AnimatePresence>
 
                 {/* Submit Button */}
                 <button
-                  onClick={handleCheckout}
+                  type="submit"
                   disabled={isProcessing}
-                  className="w-full mt-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:from-gray-500 disabled:to-gray-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-amber-500/25 transition-all hover:shadow-xl hover:shadow-amber-500/40 hover:scale-[1.02] disabled:scale-100 disabled:shadow-none disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                  aria-busy={isProcessing}
+                  className="w-full mt-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:from-gray-500 disabled:to-gray-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-amber-500/25 transition-all hover:shadow-xl hover:shadow-amber-500/40 hover:scale-[1.02] disabled:scale-100 disabled:shadow-none disabled:cursor-not-allowed flex items-center justify-center gap-3 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-slate-900"
                 >
                   {isProcessing ? (
                     <>
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Processing...
+                      <InlineSpinner className="text-white" />
+                      <span>Processing...</span>
                     </>
                   ) : (
                     <>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                       </svg>
-                      Pay ${(BOOK_PRICE / 100).toFixed(2)} — Secure Checkout
+                      <span>Pay ${(BOOK_PRICE / 100).toFixed(2)} — Secure Checkout</span>
                     </>
                   )}
                 </button>
@@ -499,12 +636,12 @@ export default function CheckoutPage({
                   Your payment info is handled securely by Stripe.
                 </p>
               </div>
-            </div>
+            </form>
 
             {/* Money Back Guarantee */}
             <div className="mt-6 p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
               <div className="flex items-center gap-3">
-                <span className="text-2xl">✨</span>
+                <span className="text-2xl" aria-hidden="true">✨</span>
                 <div>
                   <p className="text-green-200 font-medium">100% Satisfaction Guarantee</p>
                   <p className="text-green-300/80 text-sm">
@@ -517,5 +654,44 @@ export default function CheckoutPage({
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CheckoutPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = use(params);
+  const bookId = id as Id<"books">;
+
+  return (
+    <ErrorBoundary
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+          <div className="text-center p-8">
+            <div className="text-6xl mb-4">😵</div>
+            <h2 className="text-xl font-bold text-white mb-2">Checkout Error</h2>
+            <p className="text-purple-300 mb-6">Something went wrong with the checkout process.</p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => window.location.reload()}
+                className="px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white font-medium rounded-xl transition-colors"
+              >
+                Try Again
+              </button>
+              <Link
+                href="/dashboard"
+                className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white font-medium rounded-xl transition-colors"
+              >
+                Back to Dashboard
+              </Link>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <CheckoutContent bookId={bookId} />
+    </ErrorBoundary>
   );
 }

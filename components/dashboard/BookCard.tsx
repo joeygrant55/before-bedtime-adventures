@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MiniBookPreview } from "@/components/BookPreview/MiniBookPreview";
 import { ProgressIndicator } from "./ProgressIndicator";
@@ -39,8 +39,10 @@ export function BookCard({ book, onEdit, onPreview, onDelete }: BookCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const [currentView, setCurrentView] = useState<BookView>("front");
+  const [isDeleting, setIsDeleting] = useState(false);
   const rotationTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hoverDelayRef = useRef<NodeJS.Timeout | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   // Auto-rotate views on hover after delay
   useEffect(() => {
@@ -70,8 +72,43 @@ export function BookCard({ book, onEdit, onPreview, onDelete }: BookCardProps) {
 
   const displayTitle = book.coverDesign?.title || book.title;
 
+  // Handle delete with confirmation
+  const handleDelete = useCallback(async () => {
+    if (isDeleting) return;
+    
+    const confirmed = window.confirm(`Delete "${displayTitle}"? This cannot be undone.`);
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      await onDelete();
+    } catch (error) {
+      setIsDeleting(false);
+      console.error("Failed to delete book:", error);
+    }
+  }, [onDelete, displayTitle, isDeleting]);
+
+  // Handle keyboard navigation
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onEdit();
+    } else if (e.key === "Delete" || e.key === "Backspace") {
+      e.preventDefault();
+      handleDelete();
+    }
+  }, [onEdit, handleDelete]);
+
+  // Progress status for accessibility
+  const progressStatus = book.progress.isComplete 
+    ? "Complete"
+    : book.progress.generating > 0 
+      ? `${book.progress.generating} images processing`
+      : `${book.progress.completed} of ${book.progress.total} images ready`;
+
   return (
     <motion.div
+      ref={cardRef}
       className="relative"
       onMouseEnter={() => {
         setIsHovered(true);
@@ -81,12 +118,30 @@ export function BookCard({ book, onEdit, onPreview, onDelete }: BookCardProps) {
         setIsHovered(false);
         setShowActions(false);
       }}
+      onFocus={() => setShowActions(true)}
+      onBlur={(e) => {
+        // Only hide if focus is leaving the card entirely
+        if (!cardRef.current?.contains(e.relatedTarget as Node)) {
+          setShowActions(false);
+        }
+      }}
       whileHover={{ y: -4 }}
       transition={{ duration: 0.2 }}
+      role="article"
+      aria-label={`${displayTitle}. ${progressStatus}.`}
     >
-      <div className="bg-slate-800/50 rounded-2xl border border-purple-500/20 backdrop-blur-sm p-4 hover:border-purple-500/40 transition-colors">
+      <div 
+        className={`bg-slate-800/50 rounded-2xl border backdrop-blur-sm p-4 transition-all ${
+          isDeleting 
+            ? "opacity-50 pointer-events-none border-red-500/30" 
+            : "border-purple-500/20 hover:border-purple-500/40"
+        }`}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        aria-busy={isDeleting}
+      >
         {/* Book Preview */}
-        <div className="flex justify-center mb-3">
+        <div className="flex justify-center mb-3" aria-hidden="true">
           <MiniBookPreview
             book={book}
             pages={book.pages}
@@ -120,22 +175,25 @@ export function BookCard({ book, onEdit, onPreview, onDelete }: BookCardProps) {
 
         {/* Quick Actions Overlay */}
         <AnimatePresence>
-          {showActions && (
+          {showActions && !isDeleting && (
             <motion.div
               className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm rounded-2xl flex items-center justify-center gap-2"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
+              role="group"
+              aria-label="Book actions"
             >
               <motion.button
                 onClick={(e) => {
                   e.stopPropagation();
                   onEdit();
                 }}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg transition-colors"
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-offset-2 focus:ring-offset-slate-900"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                aria-label={`Edit ${displayTitle}`}
               >
                 Edit
               </motion.button>
@@ -144,31 +202,40 @@ export function BookCard({ book, onEdit, onPreview, onDelete }: BookCardProps) {
                   e.stopPropagation();
                   onPreview();
                 }}
-                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium rounded-lg transition-colors"
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 focus:ring-offset-slate-900"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                aria-label={`Preview ${displayTitle}`}
               >
                 Preview
               </motion.button>
               <motion.button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (confirm("Delete this book? This cannot be undone.")) {
-                    onDelete();
-                  }
+                  handleDelete();
                 }}
-                className="p-2 bg-red-600/20 hover:bg-red-600/40 text-red-400 rounded-lg transition-colors"
+                className="p-2 bg-red-600/20 hover:bg-red-600/40 text-red-400 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 focus:ring-offset-slate-900"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                title="Delete book"
+                aria-label={`Delete ${displayTitle}`}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               </motion.button>
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Deleting overlay */}
+        {isDeleting && (
+          <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-8 h-8 border-2 border-red-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+              <p className="text-red-300 text-sm">Deleting...</p>
+            </div>
+          </div>
+        )}
       </div>
     </motion.div>
   );

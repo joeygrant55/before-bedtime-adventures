@@ -1,17 +1,19 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { AppHeader } from "@/components/AppHeader";
 import { OrderStatusBadge } from "@/components/OrderStatus";
 import Link from "next/link";
+import { trackCheckoutCompleted, trackFunnelStep } from "@/lib/analytics";
 
 function CheckoutSuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
   const [isLoading, setIsLoading] = useState(true);
+  const hasTracked = useRef(false);
 
   // TODO: Replace with real query when backend is ready
   // const order = useQuery(api.orders.getByStripeSession, { sessionId });
@@ -21,6 +23,17 @@ function CheckoutSuccessContent() {
     const timer = setTimeout(() => setIsLoading(false), 1500);
     return () => clearTimeout(timer);
   }, []);
+
+  // Track checkout completed (only once per session)
+  useEffect(() => {
+    if (!isLoading && sessionId && !hasTracked.current) {
+      hasTracked.current = true;
+      // Track completion with session ID as placeholder for order/book IDs
+      // In production, you'd get these from the order query
+      trackCheckoutCompleted(sessionId, sessionId, 4999);
+      trackFunnelStep("purchase_complete", { sessionId });
+    }
+  }, [isLoading, sessionId]);
 
   // Mock order data
   const mockOrder = {

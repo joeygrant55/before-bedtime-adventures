@@ -1,12 +1,13 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useState, useRef } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useSearchParams } from "next/navigation";
+import { trackOrderStatusViewed } from "@/lib/analytics";
 
 const statusSteps = [
   { key: "payment_received", label: "Payment Confirmed", icon: "💳" },
@@ -37,6 +38,8 @@ export default function OrderPage({
 
   const order = useQuery(api.orders.getOrder, { orderId });
 
+  const hasTrackedView = useRef(false);
+
   // Hide confetti after animation
   useEffect(() => {
     if (showConfetti) {
@@ -44,6 +47,14 @@ export default function OrderPage({
       return () => clearTimeout(timer);
     }
   }, [showConfetti]);
+
+  // Track order status viewed
+  useEffect(() => {
+    if (order && !hasTrackedView.current) {
+      hasTrackedView.current = true;
+      trackOrderStatusViewed(orderId, order.status);
+    }
+  }, [order, orderId]);
 
   if (!order) {
     return (
