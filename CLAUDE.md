@@ -56,6 +56,38 @@ npx convex dev       # Run Convex backend only (for debugging)
 
 `middleware.ts` uses Clerk's `createRouteMatcher` to protect all routes except `/`, `/sign-in`, `/sign-up`. Unauthenticated users are redirected to landing page.
 
+## Purchase Flow
+
+The complete purchase flow allows users to buy printed hardcover books:
+
+### Flow Overview
+1. **Preview** (`/books/[id]/preview`) - Flipbook preview of the book
+2. **Checkout** (`/books/[id]/checkout`) - Shipping form + Stripe redirect
+3. **Payment** - Stripe Checkout handles payment
+4. **Processing** - After payment webhook:
+   - PDF generation (interior + cover)
+   - Lulu API submission
+5. **Order Tracking** (`/orders/[id]`) - Real-time status updates
+6. **Dashboard** - Shows all orders in OrdersSection
+
+### Key Components
+- **PDF Generation**: `convex/generatePdf.ts` - Creates print-ready PDFs using pdf-lib
+  - Interior: 8.75" × 8.75" (8.5" trim + 0.125" bleed)
+  - Cover: Full wrap-around with spine width based on page count
+- **Lulu Integration**: `convex/lulu.ts` - POD (print-on-demand) API
+  - POD Package ID: `0850X0850FCPRECW080CW444MXX` (8.5" × 8.5" hardcover)
+  - Status polling via cron job (hourly)
+- **Stripe**: `/api/stripe/` - Session creation + webhook handling
+
+### Pricing
+- Book price: **$49.99** (hardcover, full color, 8.5" × 8.5")
+- Shipping: Free (US Ground)
+
+### API Routes
+- `POST /api/stripe/create-session` - Create Stripe Checkout session
+- `POST /api/stripe/webhook` - Handle Stripe events, triggers order processing
+- `POST /api/orders/process` - Manual order processing (for testing/retries)
+
 ## Environment Variables
 
 Required in `.env.local`:
@@ -65,7 +97,14 @@ CONVEX_DEPLOYMENT=        # Auto-set by npx convex dev
 NEXT_PUBLIC_CONVEX_URL=   # Auto-set by npx convex dev
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
 CLERK_SECRET_KEY=
+STRIPE_SECRET_KEY=        # Stripe secret key (sk_test_... or sk_live_...)
+STRIPE_WEBHOOK_SECRET=    # Webhook signing secret (whsec_...)
+LULU_CLIENT_KEY=          # Lulu API client key
+LULU_CLIENT_SECRET=       # Lulu API client secret
+LULU_USE_SANDBOX=true     # "true" for sandbox, "false" for production
 ```
+
+See `.env.example` for full documentation.
 
 ## Image Handling Notes
 

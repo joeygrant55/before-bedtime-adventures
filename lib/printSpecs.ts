@@ -52,7 +52,7 @@ export const PRINT_SPECS = {
   maxPages: 800,
 
   // Pricing
-  priceInCents: 4499, // $44.99
+  priceInCents: 4999, // $49.99
   estimatedCostInCents: 2000, // ~$20 (print + shipping)
 };
 

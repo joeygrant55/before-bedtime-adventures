@@ -11,6 +11,7 @@ import { DashboardHeader } from "@/components/DashboardHeader";
 import { BookCard } from "@/components/dashboard/BookCard";
 import { CreateBookCard } from "@/components/dashboard/CreateBookCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
+import { OrdersSection } from "@/components/dashboard/OrdersSection";
 
 type FilterType = "all" | "in_progress" | "ready";
 
@@ -124,6 +125,9 @@ export default function DashboardPage() {
             )}
           </p>
         </motion.div>
+
+        {/* Orders Section - shows user's active and past orders */}
+        <OrdersSection />
 
         {/* Empty State OR Book Grid */}
         {books.length === 0 ? (

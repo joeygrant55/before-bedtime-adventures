@@ -29,7 +29,7 @@ interface ShippingAddress {
   phoneNumber: string;
 }
 
-const BOOK_PRICE = 4499; // $44.99 in cents
+const BOOK_PRICE = 4999; // $49.99 in cents
 
 // US state options for dropdown
 const STATE_OPTIONS = Object.entries(US_STATES).map(([code, name]) => ({

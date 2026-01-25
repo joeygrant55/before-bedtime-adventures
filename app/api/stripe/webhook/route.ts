@@ -66,9 +66,25 @@ export async function POST(request: Request) {
             orderId,
             status: "payment_received",
             stripeSessionId: session.id,
+            stripePaymentIntentId: session.payment_intent as string | undefined,
           });
 
           console.log(`✅ Order ${orderId} marked as paid`);
+
+          // Trigger the order processing (PDF generation + Lulu submission)
+          // This runs asynchronously - we don't wait for it
+          convex.action(api.generatePdf.processOrder, { orderId })
+            .then((result) => {
+              if (result.success) {
+                console.log(`✅ Order ${orderId} processing completed successfully`);
+              } else {
+                console.error(`❌ Order ${orderId} processing failed:`, result.error);
+              }
+            })
+            .catch((error) => {
+              console.error(`❌ Error triggering order processing for ${orderId}:`, error);
+            });
+
         } catch (error) {
           console.error("Failed to update order status:", error);
         }
@@ -81,9 +97,24 @@ export async function POST(request: Request) {
       const orderId = session.metadata?.orderId as Id<"printOrders">;
 
       if (orderId) {
-        // Could mark order as expired/failed if needed
-        console.log(`⚠️ Checkout session expired for order ${orderId}`);
+        // Mark order as failed/expired
+        try {
+          await convex.mutation(api.orders.updateOrderStatus, {
+            orderId,
+            status: "failed",
+          });
+          console.log(`⚠️ Checkout session expired for order ${orderId}, marked as failed`);
+        } catch (error) {
+          console.error(`Failed to update expired order ${orderId}:`, error);
+        }
       }
+      break;
+    }
+
+    case "payment_intent.payment_failed": {
+      const paymentIntent = event.data.object as Stripe.PaymentIntent;
+      console.log(`❌ Payment failed for intent ${paymentIntent.id}`);
+      // Could look up order by payment intent ID and mark as failed
       break;
     }
 

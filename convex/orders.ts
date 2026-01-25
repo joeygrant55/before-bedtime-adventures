@@ -260,3 +260,52 @@ export const getOrdersByStatus = query({
     return orders;
   },
 });
+
+// Get all orders for a user by Clerk ID
+export const getUserOrders = query({
+  args: { clerkId: v.string() },
+  handler: async (ctx, args) => {
+    // First get the user
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+
+    if (!user) return [];
+
+    // Get all books for this user
+    const books = await ctx.db
+      .query("books")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+
+    if (books.length === 0) return [];
+
+    // Get all orders for these books
+    const orders = await Promise.all(
+      books.map(async (book) => {
+        const order = await ctx.db
+          .query("printOrders")
+          .withIndex("by_book", (q) => q.eq("bookId", book._id))
+          .order("desc")
+          .first();
+
+        if (!order) return null;
+
+        return {
+          ...order,
+          book: {
+            _id: book._id,
+            title: book.title,
+            coverDesign: book.coverDesign,
+          },
+        };
+      })
+    );
+
+    // Filter out nulls and sort by creation date
+    return orders
+      .filter((o): o is NonNullable<typeof o> => o !== null)
+      .sort((a, b) => b.createdAt - a.createdAt);
+  },
+});

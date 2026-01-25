@@ -195,7 +195,7 @@ export function BookPreview({ book, pages, onOrderClick, onBackClick }: BookPrev
             onClick={onOrderClick}
             className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-bold px-4 md:px-8 py-3 md:py-4 rounded-xl shadow-lg shadow-amber-500/25 transition-all hover:shadow-xl hover:shadow-amber-500/40 hover:scale-105 text-sm md:text-base whitespace-nowrap flex-shrink-0"
           >
-            <span className="hidden sm:inline">Order This Book — </span>$44.99
+            <span className="hidden sm:inline">Order This Book — </span>$49.99
           </button>
         </div>
       </header>
