@@ -7,10 +7,10 @@ const isPublicRoute = createRouteMatcher([
   "/api/demo(.*)",
   // Stripe webhook - security handled by signature verification in route handler
   "/api/stripe/webhook",
-  // Public pages
+  // Public pages (no auth required)
   "/privacy",
   "/terms",
-  "/settings",
+  // Note: /settings is intentionally NOT public - it shows user PII
 ]);
 
 export default clerkMiddleware(async (auth, request) => {

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
@@ -14,10 +14,6 @@ export default function NewBookPage() {
   const [pageCount, setPageCount] = useState(15);
   const [isCreating, setIsCreating] = useState(false);
 
-  const getUserByClerkId = useQuery(
-    api.users.getUserByClerkId,
-    user ? { clerkId: user.id } : "skip"
-  );
   const createBook = useMutation(api.books.createBook);
 
   const handleCreate = async (e: React.FormEvent) => {

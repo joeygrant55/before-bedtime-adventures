@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import { useQuery } from "convex/react";
+import { useUser } from "@clerk/nextjs";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import Link from "next/link";
@@ -32,10 +33,14 @@ export default function OrderPage({
   const orderId = id as Id<"printOrders">;
   const searchParams = useSearchParams();
   const isSuccess = searchParams.get("success") === "true";
+  const { user } = useUser();
 
   const [showConfetti, setShowConfetti] = useState(isSuccess);
 
-  const order = useQuery(api.orders.getOrder, { orderId });
+  const order = useQuery(
+    api.orders.getOrderSecure,
+    user ? { clerkId: user.id, orderId } : "skip"
+  );
 
   // Hide confetti after animation
   useEffect(() => {

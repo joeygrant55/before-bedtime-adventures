@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
 import { verifyBookOwnership, verifyOrderOwnership, AuthError } from "./auth";
 
 // Create a new order - PROTECTED
@@ -47,10 +47,73 @@ export const createOrder = mutation({
   },
 });
 
-// Update order status - WEBHOOK USE ONLY
-// Called by Stripe webhook after signature verification
-// Do NOT expose this to client-side code
-export const updateOrderStatus = mutation({
+// Update order status from webhook - requires webhook token for security
+// Called by Stripe webhook handler after signature verification
+export const webhookUpdateOrderStatus = mutation({
+  args: {
+    webhookToken: v.string(), // Must match CONVEX_WEBHOOK_TOKEN env var
+    orderId: v.id("printOrders"),
+    status: v.union(
+      v.literal("pending_payment"),
+      v.literal("payment_received"),
+      v.literal("generating_pdfs"),
+      v.literal("submitting_to_lulu"),
+      v.literal("submitted"),
+      v.literal("in_production"),
+      v.literal("shipped"),
+      v.literal("delivered"),
+      v.literal("failed")
+    ),
+    stripeSessionId: v.optional(v.string()),
+    stripePaymentIntentId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Validate webhook token
+    const expectedToken = process.env.CONVEX_WEBHOOK_TOKEN;
+    if (!expectedToken || args.webhookToken !== expectedToken) {
+      throw new Error("Invalid webhook token");
+    }
+
+    const updates: Record<string, unknown> = {
+      status: args.status,
+      updatedAt: Date.now(),
+    };
+
+    if (args.stripeSessionId) {
+      updates.stripeSessionId = args.stripeSessionId;
+    }
+    if (args.stripePaymentIntentId) {
+      updates.stripePaymentIntentId = args.stripePaymentIntentId;
+    }
+
+    // Add timestamp for specific status changes
+    if (args.status === "payment_received") {
+      updates.paidAt = Date.now();
+    } else if (args.status === "submitted") {
+      updates.submittedAt = Date.now();
+    } else if (args.status === "shipped") {
+      updates.shippedAt = Date.now();
+    } else if (args.status === "delivered") {
+      updates.deliveredAt = Date.now();
+    }
+
+    await ctx.db.patch(args.orderId, updates);
+
+    // If payment received, also update the book status
+    if (args.status === "payment_received") {
+      const order = await ctx.db.get(args.orderId);
+      if (order) {
+        await ctx.db.patch(order.bookId, {
+          status: "ordered",
+          updatedAt: Date.now(),
+        });
+      }
+    }
+  },
+});
+
+// Update order status - INTERNAL USE ONLY (for Convex actions/crons)
+export const updateOrderStatus = internalMutation({
   args: {
     orderId: v.id("printOrders"),
     status: v.union(
@@ -106,9 +169,8 @@ export const updateOrderStatus = mutation({
   },
 });
 
-// Update Lulu integration fields - SERVER USE ONLY (called by backend processes)
-// Do NOT expose this to client-side code
-export const updateLuluStatus = mutation({
+// Update Lulu integration fields - INTERNAL USE ONLY
+export const updateLuluStatus = internalMutation({
   args: {
     orderId: v.id("printOrders"),
     luluPrintJobId: v.optional(v.string()),
@@ -157,9 +219,8 @@ export const updateLuluStatus = mutation({
   },
 });
 
-// Store PDF URLs after generation - SERVER USE ONLY
-// Do NOT expose this to client-side code
-export const updatePdfUrls = mutation({
+// Store PDF URLs after generation - INTERNAL USE ONLY
+export const updatePdfUrls = internalMutation({
   args: {
     orderId: v.id("printOrders"),
     interiorPdfUrl: v.string(),
@@ -174,8 +235,8 @@ export const updatePdfUrls = mutation({
   },
 });
 
-// Get order by ID - ownership verified at UI layer
-export const getOrder = query({
+// Get order by ID - INTERNAL USE ONLY (for server-side actions)
+export const getOrder = internalQuery({
   args: { orderId: v.id("printOrders") },
   handler: async (ctx, args) => {
     const order = await ctx.db.get(args.orderId);
@@ -231,8 +292,8 @@ export const getOrderByBook = query({
   },
 });
 
-// Get all orders for admin - should be protected by admin check in future
-export const getAllOrders = query({
+// Get all orders - INTERNAL USE ONLY (admin dashboard, background jobs)
+export const getAllOrders = internalQuery({
   args: {},
   handler: async (ctx) => {
     const orders = await ctx.db
@@ -255,8 +316,8 @@ export const getAllOrders = query({
   },
 });
 
-// Get active orders (for status polling) - INTERNAL
-export const getActiveOrders = query({
+// Get active orders (for status polling) - INTERNAL USE ONLY
+export const getActiveOrders = internalQuery({
   args: {},
   handler: async (ctx) => {
     // Get orders that are in progress (submitted or in_production)

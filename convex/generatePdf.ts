@@ -369,21 +369,21 @@ export const processOrder = action({
 
     try {
       // Get the order
-      const order = await ctx.runQuery(api.orders.getOrder, { orderId: args.orderId });
+      const order = await ctx.runQuery(internal.orders.getOrder, { orderId: args.orderId });
       if (!order) {
         throw new Error("Order not found");
       }
 
       // Update order status to payment_received if still pending
       if (order.status === "pending_payment") {
-        await ctx.runMutation(api.orders.updateOrderStatus, {
+        await ctx.runMutation(internal.orders.updateOrderStatus, {
           orderId: args.orderId,
           status: "payment_received",
         });
       }
 
       // Update to generating_pdfs
-      await ctx.runMutation(api.orders.updateOrderStatus, {
+      await ctx.runMutation(internal.orders.updateOrderStatus, {
         orderId: args.orderId,
         status: "generating_pdfs",
       });
@@ -400,7 +400,7 @@ export const processOrder = action({
 
       // Store PDF URLs in order
       if (pdfResult.interiorUrl && pdfResult.coverUrl) {
-        await ctx.runMutation(api.orders.updatePdfUrls, {
+        await ctx.runMutation(internal.orders.updatePdfUrls, {
           orderId: args.orderId,
           interiorPdfUrl: pdfResult.interiorUrl,
           coverPdfUrl: pdfResult.coverUrl,
@@ -422,7 +422,7 @@ export const processOrder = action({
     } catch (error) {
       console.error("❌ Error processing order:", error);
 
-      await ctx.runMutation(api.orders.updateOrderStatus, {
+      await ctx.runMutation(internal.orders.updateOrderStatus, {
         orderId: args.orderId,
         status: "failed",
       });

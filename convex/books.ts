@@ -59,18 +59,6 @@ export const getUserBooksByClerkId = query({
   },
 });
 
-// Get all books for a user
-export const getUserBooks = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("books")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .order("desc")
-      .collect();
-  },
-});
-
 // Get a single book with all its pages
 // Note: This is a query - we verify ownership at the UI layer
 // Books are not sensitive data, but mutations on them are protected

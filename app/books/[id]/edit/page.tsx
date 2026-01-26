@@ -153,8 +153,9 @@ export default function BookEditorPage({
 
   // Handle delete image
   const handleDeleteImage = async (imageId: Id<"images">) => {
+    if (!user) return;
     if (confirm("Delete this image?")) {
-      await deleteImage({ imageId });
+      await deleteImage({ clerkId: user.id, imageId });
     }
   };
 

@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { AuthError } from "./auth";
 
 // Upload an image for a page
 export const createImage = mutation({
@@ -62,12 +63,33 @@ export const updateImageStatus = mutation({
   },
 });
 
-// Delete an image
+// Delete an image - PROTECTED
 export const deleteImage = mutation({
-  args: { imageId: v.id("images") },
+  args: {
+    clerkId: v.string(),
+    imageId: v.id("images"),
+  },
   handler: async (ctx, args) => {
     const image = await ctx.db.get(args.imageId);
     if (!image) return;
+
+    // Get the page to find the book
+    const page = await ctx.db.get(image.pageId);
+    if (!page) return;
+
+    // Get the book to verify ownership
+    const book = await ctx.db.get(page.bookId);
+    if (!book) return;
+
+    // Get user by clerkId
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+
+    if (!user || book.userId !== user._id) {
+      throw new AuthError("You don't have permission to delete this image");
+    }
 
     // Delete from storage (with error handling)
     try {
