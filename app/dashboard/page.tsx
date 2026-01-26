@@ -6,15 +6,12 @@ import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
+import { UserButton } from "@clerk/nextjs";
 
-import { DashboardHeader } from "@/components/DashboardHeader";
 import { BookCard } from "@/components/dashboard/BookCard";
-import { CreateBookCard } from "@/components/dashboard/CreateBookCard";
-import { EmptyState } from "@/components/dashboard/EmptyState";
 import { OrdersSection } from "@/components/dashboard/OrdersSection";
-import { BookGridSkeleton, FullPageSkeleton } from "@/components/ui/Skeleton";
 import { ErrorBoundary, ApiError } from "@/components/ui/ErrorBoundary";
-import { NoFilterResultsEmpty } from "@/components/ui/EmptyStates";
 import { useToast } from "@/components/ui/Toast";
 import { trackUserLogin, identifyUser, trackFunnelStep } from "@/lib/analytics";
 
@@ -30,13 +27,13 @@ function DashboardContent() {
   const getOrCreateUser = useMutation(api.users.getOrCreateUser);
   const deleteBook = useMutation(api.books.deleteBook);
 
-  // Use the new query with progress data
   const books = useQuery(
     api.books.getUserBooksWithProgress,
     user ? { clerkId: user.id } : "skip"
   );
 
   const hasTrackedLogin = useRef(false);
+  const hasRedirectedFirstTime = useRef(false);
 
   // Sync user with Convex on first load
   useEffect(() => {
@@ -51,18 +48,12 @@ function DashboardContent() {
     }
   }, [user, getOrCreateUser]);
 
-  const hasRedirectedFirstTime = useRef(false);
-
-  // Track user login and funnel progress
+  // Track user login
   useEffect(() => {
     if (user && books !== undefined && !hasTrackedLogin.current) {
       hasTrackedLogin.current = true;
-      
-      // Track login
       trackUserLogin(user.id);
       trackFunnelStep("signup", { userId: user.id });
-      
-      // Identify user with properties
       identifyUser({
         userId: user.id,
         totalBooks: books.length,
@@ -72,7 +63,7 @@ function DashboardContent() {
     }
   }, [user, books]);
 
-  // First-time user? Skip the empty dashboard, go straight to book creation
+  // First-time user? Skip empty dashboard
   useEffect(() => {
     if (books !== undefined && books.length === 0 && !hasRedirectedFirstTime.current) {
       hasRedirectedFirstTime.current = true;
@@ -80,7 +71,7 @@ function DashboardContent() {
     }
   }, [books, router]);
 
-  // Filter books based on active filter
+  // Filter books
   const filteredBooks = books?.filter((book) => {
     if (activeFilter === "all") return true;
     if (activeFilter === "in_progress") return !book.progress.isComplete;
@@ -88,110 +79,155 @@ function DashboardContent() {
     return true;
   });
 
-  // Handle delete book
+  // Handle delete
   const handleDeleteBook = async (bookId: string) => {
     setDeleteError(null);
     try {
       await deleteBook({ bookId: bookId as any });
-      success("Book deleted successfully");
+      success("Book deleted");
     } catch (error) {
-      console.error("Failed to delete book:", error);
       const message = error instanceof Error ? error.message : "Failed to delete book";
       setDeleteError(message);
-      showError(message, {
-        action: {
-          label: "Retry",
-          onClick: () => handleDeleteBook(bookId),
-        },
-      });
+      showError(message);
     }
   };
 
-  // Initial loading state (before user is loaded)
   if (!isLoaded) {
-    return <FullPageSkeleton message="Loading your bookshelf..." />;
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin" />
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Ambient light effects */}
-      <div className="fixed inset-0 pointer-events-none" aria-hidden="true">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl" />
-      </div>
-
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <DashboardHeader
-        activeFilter={activeFilter}
-        onFilterChange={setActiveFilter}
-      />
+      <header className="sticky top-0 z-50 bg-white border-b border-gray-100">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2">
+            <span className="text-2xl">📚</span>
+            <span className="font-semibold text-gray-900 hidden sm:inline">Before Bedtime Adventures</span>
+          </Link>
+          
+          <div className="flex items-center gap-4">
+            <Link
+              href="/books/new"
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition-all flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              New Book
+            </Link>
+            <UserButton afterSignOutUrl="/" />
+          </div>
+        </div>
+      </header>
 
-      {/* Main Content */}
-      <main className="relative z-10 max-w-7xl mx-auto px-4 py-8" role="main">
+      {/* Main */}
+      <main className="max-w-6xl mx-auto px-6 py-8">
         {/* Page Title */}
-        <motion.div
-          className="text-center mb-10"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <h1
-            className="text-4xl md:text-5xl font-bold text-white mb-2"
-            style={{ fontFamily: "Georgia, serif" }}
-          >
-            My Bookshelf
-          </h1>
-          <p className="text-purple-300" aria-live="polite">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">My Books</h1>
+          <p className="text-gray-500">
             {books === undefined ? (
               "Loading..."
             ) : books.length === 0 ? (
-              "Your adventure begins here"
+              "Create your first storybook"
             ) : (
-              <>
-                {books.length} {books.length === 1 ? "book" : "books"} in your
-                collection
-              </>
+              `${books.length} ${books.length === 1 ? "book" : "books"} in your collection`
             )}
           </p>
-        </motion.div>
+        </div>
 
-        {/* Delete Error */}
+        {/* Filter Tabs */}
+        {books && books.length > 0 && (
+          <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-lg w-fit">
+            {[
+              { key: "all", label: "All" },
+              { key: "in_progress", label: "In Progress" },
+              { key: "ready", label: "Ready" },
+            ].map((filter) => (
+              <button
+                key={filter.key}
+                onClick={() => setActiveFilter(filter.key as FilterType)}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                  activeFilter === filter.key
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {deleteError && (
           <div className="mb-6">
             <ApiError error={deleteError} onRetry={() => setDeleteError(null)} />
           </div>
         )}
 
-        {/* Orders Section - shows user's active and past orders */}
+        {/* Orders */}
         <OrdersSection />
 
-        {/* Loading State */}
+        {/* Loading */}
         {books === undefined ? (
-          <BookGridSkeleton count={4} />
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="aspect-[3/4] bg-gray-100 rounded-xl animate-pulse" />
+            ))}
+          </div>
         ) : books.length === 0 ? (
           /* Empty State */
-          <EmptyState />
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center py-16"
+          >
+            <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <span className="text-4xl">📚</span>
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">No books yet</h2>
+            <p className="text-gray-500 mb-6 max-w-sm mx-auto">
+              Create your first magical storybook from your family photos
+            </p>
+            <Link
+              href="/books/new"
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold px-6 py-3 rounded-xl transition-all"
+            >
+              Create Your First Book
+            </Link>
+          </motion.div>
         ) : (
           /* Book Grid */
           <motion.div
-            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6"
+            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            role="list"
-            aria-label="Your books"
           >
-            {/* Create new book card - always first */}
+            {/* Create New Card */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0 }}
-              role="listitem"
             >
-              <CreateBookCard />
+              <Link
+                href="/books/new"
+                className="block aspect-[3/4] bg-white border-2 border-dashed border-gray-200 hover:border-purple-400 rounded-xl flex flex-col items-center justify-center text-center p-4 transition-all hover:bg-purple-50 group"
+              >
+                <div className="w-12 h-12 bg-purple-100 group-hover:bg-purple-200 rounded-full flex items-center justify-center mb-3 transition-colors">
+                  <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </div>
+                <span className="font-medium text-gray-900">New Book</span>
+                <span className="text-sm text-gray-500">Start creating</span>
+              </Link>
             </motion.div>
 
-            {/* Book cards */}
+            {/* Book Cards */}
             <AnimatePresence mode="popLayout">
               {filteredBooks?.map((book, index) => (
                 <motion.div
@@ -199,9 +235,8 @@ function DashboardContent() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ delay: (index + 1) * 0.05 }}
+                  transition={{ delay: index * 0.05 }}
                   layout
-                  role="listitem"
                 >
                   <BookCard
                     book={book}
@@ -215,22 +250,19 @@ function DashboardContent() {
           </motion.div>
         )}
 
-        {/* Filter results message */}
+        {/* No filter results */}
         {books && books.length > 0 && filteredBooks?.length === 0 && (
-          <NoFilterResultsEmpty
-            filterType={activeFilter}
-            onClearFilter={() => setActiveFilter("all")}
-          />
+          <div className="text-center py-12">
+            <p className="text-gray-500 mb-4">No books match this filter</p>
+            <button
+              onClick={() => setActiveFilter("all")}
+              className="text-purple-600 hover:text-purple-700 font-medium"
+            >
+              Show all books
+            </button>
+          </div>
         )}
       </main>
-
-      {/* Skip to main content link for accessibility */}
-      <a
-        href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-purple-600 focus:text-white focus:rounded-lg"
-      >
-        Skip to main content
-      </a>
     </div>
   );
 }
@@ -239,14 +271,14 @@ export default function DashboardPage() {
   return (
     <ErrorBoundary
       fallback={
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="min-h-screen bg-white flex items-center justify-center">
           <div className="text-center p-8">
-            <div className="text-6xl mb-4">😵</div>
-            <h2 className="text-xl font-bold text-white mb-2">Dashboard Error</h2>
-            <p className="text-purple-300 mb-6">Something went wrong loading your bookshelf.</p>
+            <div className="text-5xl mb-4">😵</div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Something went wrong</h2>
+            <p className="text-gray-500 mb-6">We couldn't load your books</p>
             <button
               onClick={() => window.location.reload()}
-              className="px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white font-medium rounded-xl transition-colors"
+              className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-xl transition-colors"
             >
               Reload Page
             </button>

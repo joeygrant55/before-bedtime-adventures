@@ -57,8 +57,8 @@ function CheckoutSuccessContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-purple-50">
-      <AppHeader showBackButton backHref="/dashboard" backLabel="Dashboard" />
+    <div className="min-h-screen bg-gray-50">
+      <AppHeader showBackButton backHref="/dashboard" backLabel="Back to My Books" />
 
       <main className="container mx-auto px-4 py-12 max-w-lg text-center">
         {/* Success Animation */}

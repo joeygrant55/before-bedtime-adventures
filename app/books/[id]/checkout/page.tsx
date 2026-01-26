@@ -249,7 +249,7 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
   // Book not found
   if (book === null) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <BookNotFoundEmpty />
       </div>
     );
@@ -270,7 +270,7 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
   const hasErrors = Object.keys(formErrors).some(key => formErrors[key as keyof FormErrors]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gray-50">
       {/* Ambient effects */}
       <div className="fixed inset-0 pointer-events-none" aria-hidden="true">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
@@ -282,7 +282,7 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
         <div className="flex items-center justify-between mb-8">
           <Link
             href={`/books/${bookId}/preview`}
-            className="flex items-center gap-2 text-purple-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 rounded-lg p-1"
+            className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 rounded-lg p-1"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -304,7 +304,7 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 md:p-8 border border-white/10">
+            <div className="bg-white shadow-sm rounded-2xl p-6 md:p-8 border border-gray-200">
               <h2 className="text-xl font-bold text-white mb-6">Order Summary</h2>
 
               {/* Book Preview */}
@@ -318,21 +318,21 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
                       loading="lazy"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-purple-300 text-3xl" aria-hidden="true">
+                    <div className="w-full h-full flex items-center justify-center text-gray-500 text-3xl" aria-hidden="true">
                       📚
                     </div>
                   )}
                 </div>
                 <div className="flex-1">
                   <h3 className="text-white font-semibold text-lg">{book.title}</h3>
-                  <p className="text-purple-300 text-sm mt-1">Premium Hardcover</p>
-                  <p className="text-purple-400 text-sm">{printedPageCount} pages, full color</p>
-                  <p className="text-purple-400 text-sm">8.5" × 8.5" Square</p>
+                  <p className="text-gray-500 text-sm mt-1">Premium Hardcover</p>
+                  <p className="text-gray-400 text-sm">{printedPageCount} pages, full color</p>
+                  <p className="text-gray-400 text-sm">8.5" × 8.5" Square</p>
                 </div>
               </div>
 
               {/* What's Included */}
-              <div className="border-t border-white/10 pt-6 mb-6">
+              <div className="border-t border-gray-200 pt-6 mb-6">
                 <h4 className="text-white font-medium mb-3">What's Included</h4>
                 <ul className="space-y-2" aria-label="Order includes">
                   {[
@@ -342,7 +342,7 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
                     "Archival quality paper",
                     "Free shipping (US)",
                   ].map((item, i) => (
-                    <li key={i} className="flex items-center gap-2 text-purple-200 text-sm">
+                    <li key={i} className="flex items-center gap-2 text-gray-600 text-sm">
                       <svg className="w-4 h-4 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
@@ -353,16 +353,16 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
               </div>
 
               {/* Price Breakdown */}
-              <div className="border-t border-white/10 pt-6 space-y-3">
-                <div className="flex justify-between text-purple-300">
+              <div className="border-t border-gray-200 pt-6 space-y-3">
+                <div className="flex justify-between text-gray-500">
                   <span>Hardcover Book</span>
                   <span>${(BOOK_PRICE / 100).toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-purple-300">
+                <div className="flex justify-between text-gray-500">
                   <span>Shipping (Ground)</span>
                   <span className="text-green-400">FREE</span>
                 </div>
-                <div className="flex justify-between text-white text-xl font-bold pt-3 border-t border-white/10">
+                <div className="flex justify-between text-white text-xl font-bold pt-3 border-t border-gray-200">
                   <span>Total</span>
                   <span>${(BOOK_PRICE / 100).toFixed(2)}</span>
                 </div>
@@ -383,7 +383,7 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
             </div>
 
             {/* Trust Badges */}
-            <div className="mt-6 flex items-center justify-center gap-6 text-purple-400 text-sm">
+            <div className="mt-6 flex items-center justify-center gap-6 text-gray-400 text-sm">
               <div className="flex items-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
@@ -407,16 +407,16 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
           >
             <form 
               onSubmit={(e) => { e.preventDefault(); handleCheckout(); }}
-              className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 md:p-8 border border-white/10"
+              className="bg-white shadow-sm rounded-2xl p-6 md:p-8 border border-gray-200"
               noValidate
             >
               <h2 className="text-xl font-bold text-white mb-2">Shipping Address</h2>
-              <p className="text-purple-300/60 text-sm mb-6">US addresses only</p>
+              <p className="text-gray-500/60 text-sm mb-6">US addresses only</p>
 
               <div className="space-y-4">
                 {/* Full Name */}
                 <div>
-                  <label htmlFor="name" className="block text-purple-200 text-sm font-medium mb-2">
+                  <label htmlFor="name" className="block text-gray-600 text-sm font-medium mb-2">
                     Full Name <span className="text-red-400" aria-hidden="true">*</span>
                   </label>
                   <input
@@ -431,7 +431,7 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
                     aria-invalid={!!formErrors.name}
                     aria-describedby={formErrors.name ? "name-error" : undefined}
                     className={`w-full px-4 py-3 bg-white/5 border rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${
-                      formErrors.name ? "border-red-500/50" : "border-white/10"
+                      formErrors.name ? "border-red-500/50" : "border-gray-200"
                     }`}
                   />
                   <FieldError error={formErrors.name} id="name-error" />
@@ -439,7 +439,7 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
 
                 {/* Street Address */}
                 <div>
-                  <label htmlFor="street1" className="block text-purple-200 text-sm font-medium mb-2">
+                  <label htmlFor="street1" className="block text-gray-600 text-sm font-medium mb-2">
                     Street Address <span className="text-red-400" aria-hidden="true">*</span>
                   </label>
                   <input
@@ -454,7 +454,7 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
                     aria-invalid={!!formErrors.street1}
                     aria-describedby={formErrors.street1 ? "street1-error" : undefined}
                     className={`w-full px-4 py-3 bg-white/5 border rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${
-                      formErrors.street1 ? "border-red-500/50" : "border-white/10"
+                      formErrors.street1 ? "border-red-500/50" : "border-gray-200"
                     }`}
                   />
                   <FieldError error={formErrors.street1} id="street1-error" />
@@ -462,8 +462,8 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
 
                 {/* Apartment/Suite */}
                 <div>
-                  <label htmlFor="street2" className="block text-purple-200 text-sm font-medium mb-2">
-                    Apartment, Suite, etc. <span className="text-purple-400/60">(optional)</span>
+                  <label htmlFor="street2" className="block text-gray-600 text-sm font-medium mb-2">
+                    Apartment, Suite, etc. <span className="text-gray-400/60">(optional)</span>
                   </label>
                   <input
                     id="street2"
@@ -472,14 +472,14 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
                     onChange={(e) => handleInputChange("street2", e.target.value)}
                     placeholder="Apt 4B"
                     autoComplete="address-line2"
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 bg-white/5 border border-gray-200 rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                   />
                 </div>
 
                 {/* City & State */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="city" className="block text-purple-200 text-sm font-medium mb-2">
+                    <label htmlFor="city" className="block text-gray-600 text-sm font-medium mb-2">
                       City <span className="text-red-400" aria-hidden="true">*</span>
                     </label>
                     <input
@@ -494,13 +494,13 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
                       aria-invalid={!!formErrors.city}
                       aria-describedby={formErrors.city ? "city-error" : undefined}
                       className={`w-full px-4 py-3 bg-white/5 border rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${
-                        formErrors.city ? "border-red-500/50" : "border-white/10"
+                        formErrors.city ? "border-red-500/50" : "border-gray-200"
                       }`}
                     />
                     <FieldError error={formErrors.city} id="city-error" />
                   </div>
                   <div>
-                    <label htmlFor="stateCode" className="block text-purple-200 text-sm font-medium mb-2">
+                    <label htmlFor="stateCode" className="block text-gray-600 text-sm font-medium mb-2">
                       State <span className="text-red-400" aria-hidden="true">*</span>
                     </label>
                     <select
@@ -513,7 +513,7 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
                       aria-invalid={!!formErrors.stateCode}
                       aria-describedby={formErrors.stateCode ? "state-error" : undefined}
                       className={`w-full px-4 py-3 bg-white/5 border rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${
-                        formErrors.stateCode ? "border-red-500/50" : "border-white/10"
+                        formErrors.stateCode ? "border-red-500/50" : "border-gray-200"
                       }`}
                     >
                       <option value="">Select state</option>
@@ -529,7 +529,7 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
 
                 {/* ZIP Code */}
                 <div>
-                  <label htmlFor="postalCode" className="block text-purple-200 text-sm font-medium mb-2">
+                  <label htmlFor="postalCode" className="block text-gray-600 text-sm font-medium mb-2">
                     ZIP Code <span className="text-red-400" aria-hidden="true">*</span>
                   </label>
                   <input
@@ -546,7 +546,7 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
                     aria-invalid={!!formErrors.postalCode}
                     aria-describedby={formErrors.postalCode ? "zip-error" : undefined}
                     className={`w-full px-4 py-3 bg-white/5 border rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${
-                      formErrors.postalCode ? "border-red-500/50" : "border-white/10"
+                      formErrors.postalCode ? "border-red-500/50" : "border-gray-200"
                     }`}
                   />
                   <FieldError error={formErrors.postalCode} id="zip-error" />
@@ -554,9 +554,9 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
 
                 {/* Phone Number */}
                 <div>
-                  <label htmlFor="phoneNumber" className="block text-purple-200 text-sm font-medium mb-2">
+                  <label htmlFor="phoneNumber" className="block text-gray-600 text-sm font-medium mb-2">
                     Phone Number <span className="text-red-400" aria-hidden="true">*</span>
-                    <span className="text-purple-400/60 font-normal ml-2">(for delivery updates)</span>
+                    <span className="text-gray-400/60 font-normal ml-2">(for delivery updates)</span>
                   </label>
                   <input
                     id="phoneNumber"
@@ -571,7 +571,7 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
                     aria-invalid={!!formErrors.phoneNumber}
                     aria-describedby={formErrors.phoneNumber ? "phone-error" : undefined}
                     className={`w-full px-4 py-3 bg-white/5 border rounded-xl text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${
-                      formErrors.phoneNumber ? "border-red-500/50" : "border-white/10"
+                      formErrors.phoneNumber ? "border-red-500/50" : "border-gray-200"
                     }`}
                   />
                   <FieldError error={formErrors.phoneNumber} id="phone-error" />
@@ -579,7 +579,7 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
 
                 {/* Contact Email (read-only) */}
                 <div>
-                  <label htmlFor="email" className="block text-purple-200 text-sm font-medium mb-2">
+                  <label htmlFor="email" className="block text-gray-600 text-sm font-medium mb-2">
                     Contact Email
                   </label>
                   <input
@@ -588,9 +588,9 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
                     value={userEmail}
                     disabled
                     aria-describedby="email-hint"
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-purple-300 cursor-not-allowed"
+                    className="w-full px-4 py-3 bg-white/5 border border-gray-200 rounded-xl text-gray-500 cursor-not-allowed"
                   />
-                  <p id="email-hint" className="text-purple-400/60 text-xs mt-1">Order updates will be sent to this email</p>
+                  <p id="email-hint" className="text-gray-400/60 text-xs mt-1">Order updates will be sent to this email</p>
                   <FieldError error={formErrors.email} />
                 </div>
 
@@ -630,7 +630,7 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
                 </button>
 
                 {/* Additional Info */}
-                <p className="text-center text-purple-400/60 text-xs mt-4">
+                <p className="text-center text-gray-400/60 text-xs mt-4">
                   By completing this purchase, you agree to our Terms of Service.
                   <br />
                   Your payment info is handled securely by Stripe.
@@ -668,11 +668,11 @@ export default function CheckoutPage({
   return (
     <ErrorBoundary
       fallback={
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="text-center p-8">
             <div className="text-6xl mb-4">😵</div>
             <h2 className="text-xl font-bold text-white mb-2">Checkout Error</h2>
-            <p className="text-purple-300 mb-6">Something went wrong with the checkout process.</p>
+            <p className="text-gray-500 mb-6">Something went wrong with the checkout process.</p>
             <div className="flex gap-3 justify-center">
               <button
                 onClick={() => window.location.reload()}
