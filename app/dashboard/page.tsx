@@ -51,6 +51,8 @@ function DashboardContent() {
     }
   }, [user, getOrCreateUser]);
 
+  const hasRedirectedFirstTime = useRef(false);
+
   // Track user login and funnel progress
   useEffect(() => {
     if (user && books !== undefined && !hasTrackedLogin.current) {
@@ -69,6 +71,14 @@ function DashboardContent() {
       });
     }
   }, [user, books]);
+
+  // First-time user? Skip the empty dashboard, go straight to book creation
+  useEffect(() => {
+    if (books !== undefined && books.length === 0 && !hasRedirectedFirstTime.current) {
+      hasRedirectedFirstTime.current = true;
+      router.push("/books/new");
+    }
+  }, [books, router]);
 
   // Filter books based on active filter
   const filteredBooks = books?.filter((book) => {
