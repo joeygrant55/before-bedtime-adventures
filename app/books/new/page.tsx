@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -27,10 +27,6 @@ function NewBookContent() {
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
-  const getUserByClerkId = useQuery(
-    api.users.getUserByClerkId,
-    user ? { clerkId: user.id } : "skip"
-  );
   const createBook = useMutation(api.books.createBook);
 
   const validateField = useCallback((field: string, value: string | number): string | undefined => {
@@ -94,7 +90,7 @@ function NewBookContent() {
       return;
     }
 
-    if (!getUserByClerkId) {
+    if (!user) {
       showError("Please wait while we set up your account");
       return;
     }
@@ -102,7 +98,7 @@ function NewBookContent() {
     setIsCreating(true);
     try {
       const bookId = await createBook({
-        userId: getUserByClerkId._id,
+        clerkId: user.id,
         title: title.trim(),
         pageCount,
       });
@@ -224,7 +220,7 @@ function NewBookContent() {
             {/* Submit */}
             <button
               type="submit"
-              disabled={isCreating || !getUserByClerkId}
+              disabled={isCreating || !user}
               className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold px-8 py-4 rounded-xl transition-all disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isCreating ? (
@@ -242,7 +238,7 @@ function NewBookContent() {
               )}
             </button>
 
-            {!getUserByClerkId && isLoaded && (
+            {!user && isLoaded && (
               <p className="text-center text-gray-400 text-sm mt-4">
                 Setting up your account...
               </p>

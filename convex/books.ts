@@ -1,16 +1,23 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
+import { verifyBookOwnership, getUserFromClerkId, AuthError } from "./auth";
 
 // Create a new book
 export const createBook = mutation({
   args: {
-    userId: v.id("users"),
+    clerkId: v.string(), // Required for auth
     title: v.string(),
     pageCount: v.number(),
   },
   handler: async (ctx, args) => {
+    // Get user from Clerk ID
+    const user = await getUserFromClerkId(ctx, args.clerkId);
+    if (!user) {
+      throw new AuthError("User not found");
+    }
+
     const bookId = await ctx.db.insert("books", {
-      userId: args.userId,
+      userId: user._id,
       title: args.title,
       pageCount: args.pageCount,
       status: "draft",
@@ -52,19 +59,9 @@ export const getUserBooksByClerkId = query({
   },
 });
 
-// Get all books for a user
-export const getUserBooks = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("books")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .order("desc")
-      .collect();
-  },
-});
-
 // Get a single book with all its pages
+// Note: This is a query - we verify ownership at the UI layer
+// Books are not sensitive data, but mutations on them are protected
 export const getBook = query({
   args: { bookId: v.id("books") },
   handler: async (ctx, args) => {
@@ -92,13 +89,20 @@ export const getBook = query({
   },
 });
 
-// Update book title
+// Update book title - PROTECTED
 export const updateBookTitle = mutation({
   args: {
+    clerkId: v.string(),
     bookId: v.id("books"),
     title: v.string(),
   },
   handler: async (ctx, args) => {
+    // Verify ownership
+    const isOwner = await verifyBookOwnership(ctx, args.bookId, args.clerkId);
+    if (!isOwner) {
+      throw new AuthError("You don't have permission to edit this book");
+    }
+
     await ctx.db.patch(args.bookId, {
       title: args.title,
       updatedAt: Date.now(),
@@ -106,9 +110,10 @@ export const updateBookTitle = mutation({
   },
 });
 
-// Update book status
+// Update book status - PROTECTED
 export const updateBookStatus = mutation({
   args: {
+    clerkId: v.string(),
     bookId: v.id("books"),
     status: v.union(
       v.literal("draft"),
@@ -119,6 +124,12 @@ export const updateBookStatus = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    // Verify ownership
+    const isOwner = await verifyBookOwnership(ctx, args.bookId, args.clerkId);
+    if (!isOwner) {
+      throw new AuthError("You don't have permission to edit this book");
+    }
+
     await ctx.db.patch(args.bookId, {
       status: args.status,
       updatedAt: Date.now(),
@@ -199,10 +210,19 @@ export const getUserBooksWithProgress = query({
   },
 });
 
-// Delete a book and all its pages and images
+// Delete a book and all its pages and images - PROTECTED
 export const deleteBook = mutation({
-  args: { bookId: v.id("books") },
+  args: {
+    clerkId: v.string(),
+    bookId: v.id("books"),
+  },
   handler: async (ctx, args) => {
+    // Verify ownership
+    const isOwner = await verifyBookOwnership(ctx, args.bookId, args.clerkId);
+    if (!isOwner) {
+      throw new AuthError("You don't have permission to delete this book");
+    }
+
     // Get all pages for this book
     const pages = await ctx.db
       .query("pages")
@@ -235,9 +255,10 @@ export const deleteBook = mutation({
   },
 });
 
-// Update cover design
+// Update cover design - PROTECTED
 export const updateCoverDesign = mutation({
   args: {
+    clerkId: v.string(),
     bookId: v.id("books"),
     coverDesign: v.object({
       title: v.string(),
@@ -254,6 +275,12 @@ export const updateCoverDesign = mutation({
     }),
   },
   handler: async (ctx, args) => {
+    // Verify ownership
+    const isOwner = await verifyBookOwnership(ctx, args.bookId, args.clerkId);
+    if (!isOwner) {
+      throw new AuthError("You don't have permission to edit this book");
+    }
+
     await ctx.db.patch(args.bookId, {
       coverDesign: args.coverDesign,
       updatedAt: Date.now(),
@@ -263,9 +290,10 @@ export const updateCoverDesign = mutation({
 
 // === PRINT-RELATED MUTATIONS ===
 
-// Update print status
+// Update print status - PROTECTED
 export const updatePrintStatus = mutation({
   args: {
+    clerkId: v.string(),
     bookId: v.id("books"),
     printStatus: v.union(
       v.literal("editing"),
@@ -276,6 +304,12 @@ export const updatePrintStatus = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    // Verify ownership
+    const isOwner = await verifyBookOwnership(ctx, args.bookId, args.clerkId);
+    if (!isOwner) {
+      throw new AuthError("You don't have permission to edit this book");
+    }
+
     await ctx.db.patch(args.bookId, {
       printStatus: args.printStatus,
       updatedAt: Date.now(),
@@ -283,14 +317,21 @@ export const updatePrintStatus = mutation({
   },
 });
 
-// Update print PDFs
+// Update print PDFs - PROTECTED
 export const updatePrintPdf = mutation({
   args: {
+    clerkId: v.string(),
     bookId: v.id("books"),
     interiorPdfId: v.optional(v.id("_storage")),
     coverPdfId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
+    // Verify ownership
+    const isOwner = await verifyBookOwnership(ctx, args.bookId, args.clerkId);
+    if (!isOwner) {
+      throw new AuthError("You don't have permission to edit this book");
+    }
+
     const updates: Record<string, unknown> = {
       updatedAt: Date.now(),
     };
@@ -306,12 +347,19 @@ export const updatePrintPdf = mutation({
   },
 });
 
-// Initialize print format for a book
+// Initialize print format for a book - PROTECTED
 export const initializePrintFormat = mutation({
   args: {
+    clerkId: v.string(),
     bookId: v.id("books"),
   },
   handler: async (ctx, args) => {
+    // Verify ownership
+    const isOwner = await verifyBookOwnership(ctx, args.bookId, args.clerkId);
+    if (!isOwner) {
+      throw new AuthError("You don't have permission to edit this book");
+    }
+
     const book = await ctx.db.get(args.bookId);
     if (!book) throw new Error("Book not found");
 
@@ -386,5 +434,74 @@ export const checkPrintReadiness = query({
       ready: true,
       progress: { completed: completedImages, total: totalImages },
     };
+  },
+});
+
+// =====================================================
+// INTERNAL MUTATIONS (for server-to-server calls only)
+// These bypass auth checks and should only be called
+// from other Convex functions (actions, crons, etc.)
+// =====================================================
+
+// Internal: Update print status
+export const internalUpdatePrintStatus = internalMutation({
+  args: {
+    bookId: v.id("books"),
+    printStatus: v.union(
+      v.literal("editing"),
+      v.literal("ready_for_pdf"),
+      v.literal("generating_pdfs"),
+      v.literal("pdfs_ready"),
+      v.literal("submitted")
+    ),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.bookId, {
+      printStatus: args.printStatus,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+// Internal: Update print PDFs
+export const internalUpdatePrintPdf = internalMutation({
+  args: {
+    bookId: v.id("books"),
+    interiorPdfId: v.optional(v.id("_storage")),
+    coverPdfId: v.optional(v.id("_storage")),
+  },
+  handler: async (ctx, args) => {
+    const updates: Record<string, unknown> = {
+      updatedAt: Date.now(),
+    };
+
+    if (args.interiorPdfId !== undefined) {
+      updates.interiorPdfId = args.interiorPdfId;
+    }
+    if (args.coverPdfId !== undefined) {
+      updates.coverPdfId = args.coverPdfId;
+    }
+
+    await ctx.db.patch(args.bookId, updates);
+  },
+});
+
+// Internal: Update book status
+export const internalUpdateBookStatus = internalMutation({
+  args: {
+    bookId: v.id("books"),
+    status: v.union(
+      v.literal("draft"),
+      v.literal("generating"),
+      v.literal("ready_to_print"),
+      v.literal("ordered"),
+      v.literal("completed")
+    ),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.bookId, {
+      status: args.status,
+      updatedAt: Date.now(),
+    });
   },
 });

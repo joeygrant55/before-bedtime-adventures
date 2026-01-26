@@ -62,7 +62,13 @@ export async function POST(request: Request) {
       if (orderId) {
         try {
           // Update order status to payment_received
-          await convex.mutation(api.orders.updateOrderStatus, {
+          const webhookToken = process.env.CONVEX_WEBHOOK_TOKEN;
+          if (!webhookToken) {
+            throw new Error("CONVEX_WEBHOOK_TOKEN is not configured");
+          }
+
+          await convex.mutation(api.orders.webhookUpdateOrderStatus, {
+            webhookToken,
             orderId,
             status: "payment_received",
             stripeSessionId: session.id,

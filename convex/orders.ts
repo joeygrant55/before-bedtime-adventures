@@ -1,9 +1,11 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
+import { verifyBookOwnership, verifyOrderOwnership, AuthError } from "./auth";
 
-// Create a new order with updated schema for Lulu integration
+// Create a new order - PROTECTED
 export const createOrder = mutation({
   args: {
+    clerkId: v.string(),
     bookId: v.id("books"),
     shippingAddress: v.object({
       name: v.string(),
@@ -18,6 +20,12 @@ export const createOrder = mutation({
     price: v.number(), // In cents ($44.99 = 4499)
   },
   handler: async (ctx, args) => {
+    // Verify user owns the book
+    const isOwner = await verifyBookOwnership(ctx, args.bookId, args.clerkId);
+    if (!isOwner) {
+      throw new AuthError("You don't have permission to order this book");
+    }
+
     // Estimated cost (Lulu print + shipping)
     const estimatedCost = 2000; // $20.00 in cents
 
@@ -39,8 +47,73 @@ export const createOrder = mutation({
   },
 });
 
-// Update order status
-export const updateOrderStatus = mutation({
+// Update order status from webhook - requires webhook token for security
+// Called by Stripe webhook handler after signature verification
+export const webhookUpdateOrderStatus = mutation({
+  args: {
+    webhookToken: v.string(), // Must match CONVEX_WEBHOOK_TOKEN env var
+    orderId: v.id("printOrders"),
+    status: v.union(
+      v.literal("pending_payment"),
+      v.literal("payment_received"),
+      v.literal("generating_pdfs"),
+      v.literal("submitting_to_lulu"),
+      v.literal("submitted"),
+      v.literal("in_production"),
+      v.literal("shipped"),
+      v.literal("delivered"),
+      v.literal("failed")
+    ),
+    stripeSessionId: v.optional(v.string()),
+    stripePaymentIntentId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Validate webhook token
+    const expectedToken = process.env.CONVEX_WEBHOOK_TOKEN;
+    if (!expectedToken || args.webhookToken !== expectedToken) {
+      throw new Error("Invalid webhook token");
+    }
+
+    const updates: Record<string, unknown> = {
+      status: args.status,
+      updatedAt: Date.now(),
+    };
+
+    if (args.stripeSessionId) {
+      updates.stripeSessionId = args.stripeSessionId;
+    }
+    if (args.stripePaymentIntentId) {
+      updates.stripePaymentIntentId = args.stripePaymentIntentId;
+    }
+
+    // Add timestamp for specific status changes
+    if (args.status === "payment_received") {
+      updates.paidAt = Date.now();
+    } else if (args.status === "submitted") {
+      updates.submittedAt = Date.now();
+    } else if (args.status === "shipped") {
+      updates.shippedAt = Date.now();
+    } else if (args.status === "delivered") {
+      updates.deliveredAt = Date.now();
+    }
+
+    await ctx.db.patch(args.orderId, updates);
+
+    // If payment received, also update the book status
+    if (args.status === "payment_received") {
+      const order = await ctx.db.get(args.orderId);
+      if (order) {
+        await ctx.db.patch(order.bookId, {
+          status: "ordered",
+          updatedAt: Date.now(),
+        });
+      }
+    }
+  },
+});
+
+// Update order status - INTERNAL USE ONLY (for Convex actions/crons)
+export const updateOrderStatus = internalMutation({
   args: {
     orderId: v.id("printOrders"),
     status: v.union(
@@ -96,8 +169,8 @@ export const updateOrderStatus = mutation({
   },
 });
 
-// Update Lulu integration fields
-export const updateLuluStatus = mutation({
+// Update Lulu integration fields - INTERNAL USE ONLY
+export const updateLuluStatus = internalMutation({
   args: {
     orderId: v.id("printOrders"),
     luluPrintJobId: v.optional(v.string()),
@@ -146,8 +219,8 @@ export const updateLuluStatus = mutation({
   },
 });
 
-// Store PDF URLs after generation
-export const updatePdfUrls = mutation({
+// Store PDF URLs after generation - INTERNAL USE ONLY
+export const updatePdfUrls = internalMutation({
   args: {
     orderId: v.id("printOrders"),
     interiorPdfUrl: v.string(),
@@ -162,12 +235,38 @@ export const updatePdfUrls = mutation({
   },
 });
 
-// Get order by ID
-export const getOrder = query({
+// Get order by ID - INTERNAL USE ONLY (for server-side actions)
+export const getOrder = internalQuery({
   args: { orderId: v.id("printOrders") },
   handler: async (ctx, args) => {
     const order = await ctx.db.get(args.orderId);
     if (!order) return null;
+
+    // Get associated book
+    const book = await ctx.db.get(order.bookId);
+
+    return {
+      ...order,
+      book,
+    };
+  },
+});
+
+// Get order by ID with ownership check - PROTECTED
+export const getOrderSecure = query({
+  args: {
+    clerkId: v.string(),
+    orderId: v.id("printOrders"),
+  },
+  handler: async (ctx, args) => {
+    const order = await ctx.db.get(args.orderId);
+    if (!order) return null;
+
+    // Verify ownership through book
+    const isOwner = await verifyOrderOwnership(ctx, args.orderId, args.clerkId);
+    if (!isOwner) {
+      return null; // Don't reveal order exists
+    }
 
     // Get associated book
     const book = await ctx.db.get(order.bookId);
@@ -193,8 +292,8 @@ export const getOrderByBook = query({
   },
 });
 
-// Get all orders for admin
-export const getAllOrders = query({
+// Get all orders - INTERNAL USE ONLY (admin dashboard, background jobs)
+export const getAllOrders = internalQuery({
   args: {},
   handler: async (ctx) => {
     const orders = await ctx.db
@@ -217,8 +316,8 @@ export const getAllOrders = query({
   },
 });
 
-// Get active orders (for status polling)
-export const getActiveOrders = query({
+// Get active orders (for status polling) - INTERNAL USE ONLY
+export const getActiveOrders = internalQuery({
   args: {},
   handler: async (ctx) => {
     // Get orders that are in progress (submitted or in_production)

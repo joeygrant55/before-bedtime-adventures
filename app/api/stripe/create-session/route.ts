@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import Stripe from "stripe";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 
 // Lazy initialization of Stripe
 function getStripe() {
@@ -10,15 +14,55 @@ function getStripe() {
   return new Stripe(key);
 }
 
+// Lazy initialization of Convex
+function getConvex() {
+  const url = process.env.NEXT_PUBLIC_CONVEX_URL;
+  if (!url) {
+    throw new Error("NEXT_PUBLIC_CONVEX_URL is not configured");
+  }
+  return new ConvexHttpClient(url);
+}
+
 export async function POST(request: Request) {
   try {
+    // Verify user is authenticated
+    const { userId: clerkId } = await auth();
+    if (!clerkId) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const stripe = getStripe();
+    const convex = getConvex();
     const body = await request.json();
     const { bookId, orderId, bookTitle, price } = body;
 
     if (!bookId || !orderId || !bookTitle || !price) {
       return NextResponse.json(
         { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    // Verify user owns the order
+    const order = await convex.query(api.orders.getOrderSecure, {
+      clerkId,
+      orderId: orderId as Id<"printOrders">,
+    });
+
+    if (!order) {
+      return NextResponse.json(
+        { error: "Order not found or unauthorized" },
+        { status: 403 }
+      );
+    }
+
+    // Verify the orderId matches the bookId
+    if (order.bookId !== bookId) {
+      return NextResponse.json(
+        { error: "Invalid order" },
         { status: 400 }
       );
     }
@@ -49,6 +93,7 @@ export async function POST(request: Request) {
       metadata: {
         bookId,
         orderId,
+        clerkId, // Track who made the purchase
       },
       // Enable automatic tax calculation if configured
       // automatic_tax: { enabled: true },

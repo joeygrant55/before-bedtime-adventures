@@ -192,7 +192,12 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
       trackCheckoutAddressEntered(bookId);
 
       // Create order in database with new schema
+      if (!user) {
+        throw new Error("You must be signed in to place an order");
+      }
+
       const orderId = await createOrder({
+        clerkId: user.id,
         bookId,
         shippingAddress: {
           name: address.name.trim(),

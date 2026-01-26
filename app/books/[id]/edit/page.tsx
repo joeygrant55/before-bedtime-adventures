@@ -2,6 +2,7 @@
 
 import { use, useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
+import { useUser } from "@clerk/nextjs";
 import { api } from "@/convex/_generated/api";
 import { Id, Doc } from "@/convex/_generated/dataModel";
 import { ImageUpload } from "@/components/ImageUpload";
@@ -48,6 +49,7 @@ export default function BookEditorPage({
   const { id } = use(params);
   const bookId = id as Id<"books">;
   const router = useRouter();
+  const { user } = useUser();
 
   // State
   const [activeMode, setActiveMode] = useState<EditorMode>("pages");
@@ -135,7 +137,9 @@ export default function BookEditorPage({
 
   // Handle cover save
   const handleSaveCover = async () => {
+    if (!user) return;
     await updateCoverDesign({
+      clerkId: user.id,
       bookId,
       coverDesign: {
         title: coverTitle || book.title,
@@ -149,8 +153,9 @@ export default function BookEditorPage({
 
   // Handle delete image
   const handleDeleteImage = async (imageId: Id<"images">) => {
+    if (!user) return;
     if (confirm("Delete this image?")) {
-      await deleteImage({ imageId });
+      await deleteImage({ clerkId: user.id, imageId });
     }
   };
 

@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { action } from "./_generated/server";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { PDFDocument, rgb, StandardFonts, degrees } from "pdf-lib";
 import { Id } from "./_generated/dataModel";
 
@@ -136,7 +136,7 @@ export const generateInteriorPdf = action({
       const pdfId = await ctx.storage.store(pdfBlob);
 
       // Update book with PDF reference
-      await ctx.runMutation(api.books.updatePrintPdf, {
+      await ctx.runMutation(internal.books.internalUpdatePrintPdf, {
         bookId: args.bookId,
         interiorPdfId: pdfId,
       });
@@ -260,7 +260,7 @@ export const generateCoverPdf = action({
       const pdfId = await ctx.storage.store(pdfBlob);
 
       // Update book with PDF reference
-      await ctx.runMutation(api.books.updatePrintPdf, {
+      await ctx.runMutation(internal.books.internalUpdatePrintPdf, {
         bookId: args.bookId,
         coverPdfId: pdfId,
       });
@@ -297,7 +297,7 @@ export const generateAllPdfs = action({
 
     try {
       // Update book status
-      await ctx.runMutation(api.books.updatePrintStatus, {
+      await ctx.runMutation(internal.books.internalUpdatePrintStatus, {
         bookId: args.bookId,
         printStatus: "generating_pdfs",
       });
@@ -325,7 +325,7 @@ export const generateAllPdfs = action({
       const coverUrl = await ctx.storage.getUrl(coverResult.pdfId);
 
       // Update book status
-      await ctx.runMutation(api.books.updatePrintStatus, {
+      await ctx.runMutation(internal.books.internalUpdatePrintStatus, {
         bookId: args.bookId,
         printStatus: "pdfs_ready",
       });
@@ -343,7 +343,7 @@ export const generateAllPdfs = action({
       console.error("❌ Error generating PDFs:", error);
 
       // Update status to indicate failure
-      await ctx.runMutation(api.books.updatePrintStatus, {
+      await ctx.runMutation(internal.books.internalUpdatePrintStatus, {
         bookId: args.bookId,
         printStatus: "editing",
       });
@@ -369,21 +369,21 @@ export const processOrder = action({
 
     try {
       // Get the order
-      const order = await ctx.runQuery(api.orders.getOrder, { orderId: args.orderId });
+      const order = await ctx.runQuery(internal.orders.getOrder, { orderId: args.orderId });
       if (!order) {
         throw new Error("Order not found");
       }
 
       // Update order status to payment_received if still pending
       if (order.status === "pending_payment") {
-        await ctx.runMutation(api.orders.updateOrderStatus, {
+        await ctx.runMutation(internal.orders.updateOrderStatus, {
           orderId: args.orderId,
           status: "payment_received",
         });
       }
 
       // Update to generating_pdfs
-      await ctx.runMutation(api.orders.updateOrderStatus, {
+      await ctx.runMutation(internal.orders.updateOrderStatus, {
         orderId: args.orderId,
         status: "generating_pdfs",
       });
@@ -400,7 +400,7 @@ export const processOrder = action({
 
       // Store PDF URLs in order
       if (pdfResult.interiorUrl && pdfResult.coverUrl) {
-        await ctx.runMutation(api.orders.updatePdfUrls, {
+        await ctx.runMutation(internal.orders.updatePdfUrls, {
           orderId: args.orderId,
           interiorPdfUrl: pdfResult.interiorUrl,
           coverPdfUrl: pdfResult.coverUrl,
@@ -422,7 +422,7 @@ export const processOrder = action({
     } catch (error) {
       console.error("❌ Error processing order:", error);
 
-      await ctx.runMutation(api.orders.updateOrderStatus, {
+      await ctx.runMutation(internal.orders.updateOrderStatus, {
         orderId: args.orderId,
         status: "failed",
       });

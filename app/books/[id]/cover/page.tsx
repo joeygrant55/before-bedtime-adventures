@@ -2,6 +2,7 @@
 
 import { use, useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
+import { useUser } from "@clerk/nextjs";
 import { api } from "@/convex/_generated/api";
 import { Id, Doc } from "@/convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
@@ -49,6 +50,7 @@ export default function CoverDesignerPage({
   const { id } = use(params);
   const bookId = id as Id<"books">;
   const router = useRouter();
+  const { user } = useUser();
 
   const book = useQuery(api.books.getBook, { bookId });
   const pages = useQuery(api.pages.getBookPages, { bookId });
@@ -148,9 +150,11 @@ export default function CoverDesignerPage({
   const selectedTheme = THEMES.find((t) => t.id === theme) || THEMES[0];
 
   const handleSave = async () => {
+    if (!user) return;
     setIsSaving(true);
     try {
       await updateCoverDesign({
+        clerkId: user.id,
         bookId,
         coverDesign: {
           title: title || book.title,
