@@ -94,7 +94,7 @@ export function ImageUpload({
 
     // Warn if some files were skipped due to slot limits
     if (validFiles.length > remainingSlots) {
-      info(`Only uploading ${remainingSlots} of ${validFiles.length} files (max ${maxImages} per stop)`);
+      info(`Only uploading ${remainingSlots} of ${validFiles.length} files (max ${maxImages} per page)`);
     }
 
     setIsUploading(true);

@@ -97,7 +97,7 @@ export function NoPagesEmpty({ onAddPhoto }: { onAddPhoto?: () => void }) {
     <EmptyStateBase
       icon="📸"
       title="No photos yet"
-      description="Upload your first photo to start creating your magical storybook. Each stop on your journey can have up to 3 photos."
+      description="Upload your first photo to start creating your magical storybook. Each page can have up to 3 photos."
       action={
         onAddPhoto
           ? { label: "Upload First Photo", onClick: onAddPhoto }

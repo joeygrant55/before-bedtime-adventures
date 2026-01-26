@@ -26,7 +26,7 @@ type BookView = "front" | "spine" | "back";
 type CoverTheme = "purple-magic" | "ocean-adventure" | "sunset-wonder" | "forest-dreams";
 
 const MODE_TABS = [
-  { title: "Stops", icon: "📝" },
+  { title: "Pages", icon: "📝" },
   { title: "Cover", icon: "🎨" },
   { title: "Spine", icon: "📚" },
   { type: "separator" as const },
@@ -429,7 +429,7 @@ function PagesPanel({
         </div>
 
         <div className="text-center text-purple-300 text-sm">
-          Stop {currentPageIndex + 1} of {pages.length}
+          Page {currentPageIndex + 1} of {pages.length}
         </div>
       </div>
 
@@ -437,7 +437,7 @@ function PagesPanel({
       {currentPage && (
         <div className="bg-slate-800/50 rounded-2xl p-4 border border-purple-500/20">
           <h3 className="text-white font-medium mb-3 flex items-center gap-2">
-            <span>📸</span> Stop {currentPageIndex + 1} Photo
+            <span>📸</span> Page {currentPageIndex + 1} Photo
           </h3>
 
           {currentPage.images && currentPage.images.length > 0 ? (
@@ -641,7 +641,7 @@ function CoverPanel({
           ) : (
             <div className="mb-4 p-4 rounded-xl bg-slate-700/30 border border-purple-500/20 text-center">
               <p className="text-purple-400/60 text-sm">
-                Add photos to your book stops first to select a cover image.
+                Add photos to your book pages first to select a cover image.
               </p>
             </div>
           )}
@@ -876,7 +876,7 @@ function PreviewPanel({
             No photos uploaded yet
           </div>
           <p className="text-purple-400/50">
-            Go to the Stops tab and upload some photos to get started!
+            Go to the Pages tab and upload some photos to get started!
           </p>
         </div>
       )}

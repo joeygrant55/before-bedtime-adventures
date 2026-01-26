@@ -5,11 +5,10 @@
 
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 
-// Type helpers
-type MockId<T extends string> = `mock_${T}_${string}` & Id<T>;
-
-const createMockId = <T extends string>(table: T, suffix: string = "123"): MockId<T> => {
-  return `mock_${table}_${suffix}` as MockId<T>;
+// Type helpers - create mock IDs for testing
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const createMockId = <T extends string>(table: T, suffix: string = "123"): Id<any> => {
+  return `mock_${table}_${suffix}` as Id<any>;
 };
 
 // Mock User

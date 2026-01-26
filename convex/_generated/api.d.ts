@@ -11,6 +11,7 @@
 import type * as bakeTextOverlay from "../bakeTextOverlay.js";
 import type * as books from "../books.js";
 import type * as crons from "../crons.js";
+import type * as emails from "../emails.js";
 import type * as generatePdf from "../generatePdf.js";
 import type * as http from "../http.js";
 import type * as images from "../images.js";
@@ -31,6 +32,7 @@ declare const fullApi: ApiFromModules<{
   bakeTextOverlay: typeof bakeTextOverlay;
   books: typeof books;
   crons: typeof crons;
+  emails: typeof emails;
   generatePdf: typeof generatePdf;
   http: typeof http;
   images: typeof images;

@@ -43,8 +43,8 @@ function NewBookContent() {
         break;
       case "pageCount":
         const num = Number(value);
-        if (num < 10) return "Minimum 10 stops required";
-        if (num > 20) return "Maximum 20 stops allowed";
+        if (num < 10) return "Minimum 10 pages required";
+        if (num > 20) return "Maximum 20 pages allowed";
         break;
     }
     return undefined;
@@ -193,13 +193,13 @@ function NewBookContent() {
               )}
             </div>
 
-            {/* Stop Count */}
+            {/* Page Count */}
             <div className="mb-8">
               <label
                 htmlFor="pageCount"
                 className="block text-sm font-semibold text-purple-200 mb-2"
               >
-                Number of Stops on Your Journey <span className="text-red-400" aria-hidden="true">*</span>
+                Number of Pages <span className="text-red-400" aria-hidden="true">*</span>
               </label>
               <input
                 id="pageCount"
@@ -219,7 +219,7 @@ function NewBookContent() {
               <FieldError error={formErrors.pageCount} id="pageCount-error" />
               {!formErrors.pageCount && (
                 <p id="pageCount-hint" className="text-sm text-purple-400/70 mt-2">
-                  Choose 10-20 stops (each stop becomes a 2-page spread in your book)
+                  Choose 10-20 pages for your storybook (you can add more later)
                 </p>
               )}
             </div>
@@ -232,7 +232,7 @@ function NewBookContent() {
               <ul className="text-sm text-purple-300 space-y-2" role="list">
                 <li className="flex items-start gap-2">
                   <span className="text-purple-400" aria-hidden="true">•</span>
-                  <span>Upload 1-3 photos for each stop</span>
+                  <span>Upload 1-3 photos for each page</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-purple-400" aria-hidden="true">•</span>

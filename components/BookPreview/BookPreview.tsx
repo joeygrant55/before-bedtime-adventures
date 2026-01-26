@@ -502,7 +502,7 @@ function BookCover({
                 A personalized adventure
               </p>
               <p className={`text-${colors.accent}-200/60 text-xs mt-1`}>
-                {pageCount} stops of adventure
+                {pageCount} pages of adventure
               </p>
             </>
           )}
