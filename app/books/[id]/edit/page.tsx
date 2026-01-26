@@ -89,13 +89,13 @@ export default function BookEditorPage({
 
   if (!book || !pages) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center">
         <div className="text-center">
           <div className="relative w-16 h-16 mx-auto mb-4">
-            <div className="absolute inset-0 border-4 border-purple-500/30 rounded-full" />
-            <div className="absolute inset-0 border-4 border-purple-500 rounded-full border-t-transparent animate-spin" />
+            <div className="absolute inset-0 border-4 border-purple-200 rounded-full" />
+            <div className="absolute inset-0 border-4 border-purple-600 rounded-full border-t-transparent animate-spin" />
           </div>
-          <p className="text-purple-300">Loading your book...</p>
+          <p className="text-gray-600">Loading your book...</p>
         </div>
       </div>
     );
@@ -191,27 +191,27 @@ export default function BookEditorPage({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex flex-col">
       {/* Header */}
-      <header className="relative z-20 bg-slate-900/80 backdrop-blur-sm border-b border-purple-500/20">
+      <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link
             href="/dashboard"
-            className="text-purple-300 hover:text-white transition-colors flex items-center gap-2"
+            className="text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-2"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            <span className="hidden sm:inline">Dashboard</span>
+            <span className="hidden sm:inline font-medium">Dashboard</span>
           </Link>
 
-          <h1 className="text-lg font-bold text-white truncate max-w-[200px] sm:max-w-none">
+          <h1 className="text-lg font-bold text-gray-900 truncate max-w-[200px] sm:max-w-none">
             {book.title}
           </h1>
 
           <Link
             href={`/books/${bookId}/preview`}
-            className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
           >
             <span>📖</span>
             <span className="hidden sm:inline">Full Preview</span>
@@ -220,7 +220,7 @@ export default function BookEditorPage({
       </header>
 
       {/* Mode Tabs */}
-      <div className="relative z-10 flex justify-center py-4">
+      <div className="relative z-10 flex justify-center py-4 bg-white border-b border-gray-100">
         <ExpandableTabs
           tabs={MODE_TABS}
           selected={getTabIndex()}
@@ -230,9 +230,9 @@ export default function BookEditorPage({
       </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col items-center px-4 pb-24 overflow-y-auto">
+      <main className="flex-1 flex flex-col items-center px-4 pb-28 overflow-y-auto py-6">
         {/* 3D Book Preview - Always Visible */}
-        <div className="mb-6">
+        <div className="mb-8 p-6 bg-gradient-to-br from-purple-100 via-pink-50 to-purple-50 rounded-3xl shadow-sm">
           <MiniBookPreview
             book={previewBook as Doc<"books">}
             pages={pages as PageWithImages[]}
@@ -297,33 +297,33 @@ export default function BookEditorPage({
       </main>
 
       {/* Progress Footer */}
-      <footer className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur-sm border-t border-purple-500/20">
-        <div className="max-w-7xl mx-auto px-4 py-3">
+      <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+        <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between gap-4">
             {/* Progress */}
             <div className="flex-1">
-              <div className="flex items-center gap-3 mb-1">
+              <div className="flex items-center gap-3 mb-2">
                 {generatingImages > 0 ? (
-                  <div className="flex items-center gap-2 text-purple-400">
-                    <div className="w-3 h-3 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
-                    <span className="text-sm">Creating magic...</span>
+                  <div className="flex items-center gap-2 text-purple-600">
+                    <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-sm font-medium">Creating magic...</span>
                   </div>
                 ) : isAllComplete ? (
-                  <div className="flex items-center gap-2 text-green-400">
+                  <div className="flex items-center gap-2 text-emerald-600">
                     <span>✨</span>
-                    <span className="text-sm font-medium">Book ready!</span>
+                    <span className="text-sm font-semibold">Book ready!</span>
                   </div>
                 ) : totalImages > 0 ? (
-                  <span className="text-purple-300 text-sm">{completedImages}/{totalImages} images</span>
+                  <span className="text-gray-600 text-sm font-medium">{completedImages}/{totalImages} images</span>
                 ) : (
-                  <span className="text-purple-400/60 text-sm">Upload photos to start</span>
+                  <span className="text-gray-400 text-sm">Upload photos to start</span>
                 )}
               </div>
               {totalImages > 0 && (
-                <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden max-w-xs">
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden max-w-xs">
                   <div
-                    className={`h-full transition-all duration-500 ${
-                      isAllComplete ? "bg-green-500" : "bg-gradient-to-r from-purple-500 to-pink-500"
+                    className={`h-full transition-all duration-500 rounded-full ${
+                      isAllComplete ? "bg-emerald-500" : "bg-gradient-to-r from-purple-500 to-pink-500"
                     }`}
                     style={{ width: `${progressPercent}%` }}
                   />
@@ -334,10 +334,10 @@ export default function BookEditorPage({
             {/* Order Button */}
             <Link href={`/books/${bookId}/checkout`}>
               <button
-                className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${
+                className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${
                   isAllComplete
-                    ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white shadow-lg shadow-purple-500/30 animate-pulse"
-                    : "bg-purple-600/50 text-purple-200 cursor-not-allowed"
+                    ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-500/25"
+                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
                 }`}
                 disabled={!isAllComplete}
               >
@@ -387,29 +387,29 @@ function PagesPanel({
   return (
     <div className="space-y-4">
       {/* Page Navigator Strip */}
-      <div className="bg-slate-800/50 rounded-2xl p-4 border border-purple-500/20">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
         <div className="flex items-center justify-between mb-3">
           <button
             onClick={() => onPageChange(Math.max(0, currentPageIndex - 1))}
             disabled={currentPageIndex === 0}
-            className="p-2 rounded-lg bg-slate-700/50 text-purple-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            className="p-2 rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1">
             {pages.map((page, i) => (
               <button
                 key={page._id}
                 onClick={() => onPageChange(i)}
-                className={`w-8 h-8 rounded-lg text-xs font-medium transition-all ${
+                className={`w-9 h-9 rounded-xl text-xs font-semibold transition-all flex-shrink-0 ${
                   i === currentPageIndex
-                    ? "bg-purple-600 text-white shadow-lg"
+                    ? "bg-purple-600 text-white shadow-md"
                     : page.images?.length
-                      ? "bg-slate-700 text-purple-300 hover:bg-slate-600"
-                      : "bg-slate-800 text-slate-500 hover:bg-slate-700"
+                      ? "bg-purple-50 text-purple-700 hover:bg-purple-100"
+                      : "bg-gray-50 text-gray-400 hover:bg-gray-100"
                 }`}
               >
                 {i + 1}
@@ -420,7 +420,7 @@ function PagesPanel({
           <button
             onClick={() => onPageChange(Math.min(pages.length - 1, currentPageIndex + 1))}
             disabled={currentPageIndex === pages.length - 1}
-            className="p-2 rounded-lg bg-slate-700/50 text-purple-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            className="p-2 rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -428,15 +428,15 @@ function PagesPanel({
           </button>
         </div>
 
-        <div className="text-center text-purple-300 text-sm">
+        <div className="text-center text-gray-500 text-sm font-medium">
           Page {currentPageIndex + 1} of {pages.length}
         </div>
       </div>
 
       {/* Page Editor */}
       {currentPage && (
-        <div className="bg-slate-800/50 rounded-2xl p-4 border border-purple-500/20">
-          <h3 className="text-white font-medium mb-3 flex items-center gap-2">
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <h3 className="text-gray-900 font-semibold mb-4 flex items-center gap-2">
             <span>📸</span> Page {currentPageIndex + 1} Photo
           </h3>
 
@@ -447,18 +447,18 @@ function PagesPanel({
                   {/* Status Badge */}
                   <div className="absolute top-3 left-3 z-10">
                     {image.generationStatus === "generating" && (
-                      <div className="bg-blue-500/90 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
-                        <div className="w-2 h-2 border border-white border-t-transparent rounded-full animate-spin" />
-                        <span>Processing</span>
+                      <div className="bg-blue-500 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm">
+                        <div className="w-2 h-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span className="font-medium">Processing</span>
                       </div>
                     )}
                     {image.generationStatus === "completed" && (
-                      <div className="bg-green-500/90 text-white text-xs px-2 py-1 rounded-full">
+                      <div className="bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-full shadow-sm font-medium">
                         ✨ Ready
                       </div>
                     )}
                     {image.generationStatus === "failed" && (
-                      <div className="bg-red-500/90 text-white text-xs px-2 py-1 rounded-full">
+                      <div className="bg-red-500 text-white text-xs px-3 py-1.5 rounded-full shadow-sm font-medium">
                         ❌ Failed
                       </div>
                     )}
@@ -467,7 +467,7 @@ function PagesPanel({
                   {/* Delete Button */}
                   <button
                     onClick={() => onDeleteImage(image._id)}
-                    className="absolute top-3 right-3 z-10 bg-red-500 hover:bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-3 right-3 z-10 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -478,8 +478,8 @@ function PagesPanel({
                   <div className="grid grid-cols-2 gap-4">
                     {/* Original */}
                     <div className="space-y-2">
-                      <p className="text-purple-400 text-xs text-center">Original</p>
-                      <div className="aspect-square rounded-xl overflow-hidden bg-slate-700">
+                      <p className="text-gray-500 text-xs font-medium text-center">Original</p>
+                      <div className="aspect-square rounded-xl overflow-hidden bg-gray-100 shadow-sm">
                         {image.originalUrl && (
                           <img
                             src={image.originalUrl}
@@ -492,11 +492,11 @@ function PagesPanel({
 
                     {/* Transformed / Baked */}
                     <div className="space-y-2">
-                      <p className="text-purple-400 text-xs text-center">
+                      <p className="text-gray-500 text-xs font-medium text-center">
                         {image.bakedUrl ? "Final" : image.cartoonUrl ? "Cartoon" : "Processing..."}
                         {image.bakingStatus === "baking" && " (Baking text...)"}
                       </p>
-                      <div className="aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-purple-900/50 to-pink-900/50 relative group/cartoon">
+                      <div className="aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-purple-100 to-pink-100 relative group/cartoon shadow-sm">
                         {/* Show baked image if available, otherwise cartoon */}
                         {(image.bakedUrl || image.cartoonUrl) ? (
                           <>
@@ -510,7 +510,7 @@ function PagesPanel({
                               <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                                 <div className="text-center text-white">
                                   <div className="w-8 h-8 border-3 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                                  <div className="text-sm">Baking text...</div>
+                                  <div className="text-sm font-medium">Baking text...</div>
                                 </div>
                               </div>
                             )}
@@ -518,9 +518,9 @@ function PagesPanel({
                             {image.bakingStatus !== "baking" && (
                               <button
                                 onClick={() => handleOpenOverlayEditor(image)}
-                                className="absolute inset-0 bg-black/50 opacity-0 group-hover/cartoon:opacity-100 transition-opacity flex items-center justify-center"
+                                className="absolute inset-0 bg-black/40 opacity-0 group-hover/cartoon:opacity-100 transition-opacity flex items-center justify-center"
                               >
-                                <div className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 shadow-lg">
+                                <div className="bg-white hover:bg-gray-50 text-gray-900 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 shadow-lg">
                                   <span>📝</span>
                                   <span>{image.bakedUrl ? "Edit Text" : "Add Text"}</span>
                                 </div>
@@ -528,10 +528,10 @@ function PagesPanel({
                             )}
                           </>
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-purple-400">
+                          <div className="w-full h-full flex items-center justify-center text-purple-500">
                             <div className="text-center">
                               <div className="text-3xl mb-2">🎨</div>
-                              <div className="text-sm">Creating magic...</div>
+                              <div className="text-sm font-medium">Creating magic...</div>
                             </div>
                           </div>
                         )}
@@ -606,30 +606,30 @@ function CoverPanel({
   onCustomCoverUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
   return (
-    <div className="bg-slate-800/50 rounded-2xl p-6 border border-purple-500/20">
-      <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+      <h3 className="text-gray-900 font-semibold mb-5 flex items-center gap-2 text-lg">
         <span>🎨</span> Design Your Cover
       </h3>
 
-      <div className="space-y-4">
+      <div className="space-y-5">
         {/* Cover Image Selection */}
         <div>
-          <label className="text-purple-300 text-sm mb-2 block">Cover Hero Image</label>
+          <label className="text-gray-700 text-sm font-medium mb-2 block">Cover Hero Image</label>
 
           {/* Book images - primary option */}
           {allImages.length > 0 ? (
             <div className="mb-4">
-              <p className="text-purple-400 text-xs mb-3">Select from your transformed images:</p>
+              <p className="text-gray-500 text-xs mb-3">Select from your transformed images:</p>
               <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
                 {allImages.map((img, index) => (
                   img.cartoonUrl && (
                     <button
                       key={index}
                       onClick={() => onHeroIndexChange(index)}
-                      className={`aspect-square rounded-xl overflow-hidden border-3 transition-all hover:scale-105 ${
+                      className={`aspect-square rounded-xl overflow-hidden border-2 transition-all hover:scale-105 ${
                         selectedHeroIndex === index
-                          ? "border-purple-500 ring-4 ring-purple-500/50 shadow-lg shadow-purple-500/30"
-                          : "border-slate-600 hover:border-purple-500/50"
+                          ? "border-purple-500 ring-4 ring-purple-500/20 shadow-lg"
+                          : "border-gray-200 hover:border-purple-300"
                       }`}
                     >
                       <img src={img.cartoonUrl} alt={`Option ${index + 1}`} className="w-full h-full object-cover" />
@@ -639,17 +639,17 @@ function CoverPanel({
               </div>
             </div>
           ) : (
-            <div className="mb-4 p-4 rounded-xl bg-slate-700/30 border border-purple-500/20 text-center">
-              <p className="text-purple-400/60 text-sm">
+            <div className="mb-4 p-4 rounded-xl bg-gray-50 border border-gray-200 text-center">
+              <p className="text-gray-500 text-sm">
                 Add photos to your book pages first to select a cover image.
               </p>
             </div>
           )}
 
           {/* Custom upload - secondary option */}
-          <div className="pt-3 border-t border-purple-500/20">
-            <p className="text-purple-400 text-xs mb-2">Or upload a custom image:</p>
-            <label className="flex items-center justify-center gap-2 p-2 rounded-lg border border-dashed border-purple-500/30 hover:border-purple-500 hover:bg-purple-500/10 cursor-pointer transition-all">
+          <div className="pt-3 border-t border-gray-100">
+            <p className="text-gray-500 text-xs mb-2">Or upload a custom image:</p>
+            <label className="flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-dashed border-gray-200 hover:border-purple-400 hover:bg-purple-50 cursor-pointer transition-all">
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
@@ -657,74 +657,74 @@ function CoverPanel({
                 className="hidden"
               />
               <span className="text-sm">📸</span>
-              <span className="text-purple-300 text-xs">Upload Custom Image</span>
+              <span className="text-gray-600 text-sm font-medium">Upload Custom Image</span>
             </label>
             {customCoverImage && (
               <div className="mt-2 flex items-center gap-2">
                 <button
                   onClick={() => onHeroIndexChange(-1)}
-                  className={`w-12 h-12 rounded-lg overflow-hidden border-2 transition-all ${
+                  className={`w-12 h-12 rounded-xl overflow-hidden border-2 transition-all ${
                     selectedHeroIndex === -1
-                      ? "border-purple-500 ring-2 ring-purple-500/50"
-                      : "border-slate-600 hover:border-purple-500/50"
+                      ? "border-purple-500 ring-2 ring-purple-500/20"
+                      : "border-gray-200 hover:border-purple-300"
                   }`}
                 >
                   <img src={customCoverImage} alt="Uploaded" className="w-full h-full object-cover" />
                 </button>
-                <span className="text-purple-400 text-xs">Custom upload</span>
+                <span className="text-gray-500 text-xs">Custom upload</span>
               </div>
             )}
           </div>
         </div>
 
         <div>
-          <label className="text-purple-300 text-sm mb-1 block">Book Title</label>
+          <label className="text-gray-700 text-sm font-medium mb-1.5 block">Book Title</label>
           <input
             type="text"
             value={title}
             onChange={(e) => onTitleChange(e.target.value)}
             placeholder="Your Book Title"
-            className="w-full bg-slate-700/50 border border-purple-500/20 rounded-lg px-4 py-3 text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
           />
         </div>
 
         <div>
-          <label className="text-purple-300 text-sm mb-1 block">Subtitle (optional)</label>
+          <label className="text-gray-700 text-sm font-medium mb-1.5 block">Subtitle (optional)</label>
           <input
             type="text"
             value={subtitle}
             onChange={(e) => onSubtitleChange(e.target.value)}
             placeholder="e.g., Our Family Adventure 2024"
-            className="w-full bg-slate-700/50 border border-purple-500/20 rounded-lg px-4 py-3 text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
           />
         </div>
 
         <div>
-          <label className="text-purple-300 text-sm mb-1 block">Author Line (optional)</label>
+          <label className="text-gray-700 text-sm font-medium mb-1.5 block">Author Line (optional)</label>
           <input
             type="text"
             value={authorLine}
             onChange={(e) => onAuthorLineChange(e.target.value)}
             placeholder="e.g., Created by the Smith Family"
-            className="w-full bg-slate-700/50 border border-purple-500/20 rounded-lg px-4 py-3 text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
           />
         </div>
 
         <div>
-          <label className="text-purple-300 text-sm mb-2 block">Color Theme</label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <label className="text-gray-700 text-sm font-medium mb-2 block">Color Theme</label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {THEMES.map((t) => (
               <button
                 key={t.id}
                 onClick={() => onThemeChange(t.id)}
                 className={`p-3 rounded-xl border-2 transition-all ${
                   theme === t.id
-                    ? "border-white shadow-lg scale-105"
-                    : "border-transparent hover:border-purple-500/50"
+                    ? "border-purple-500 bg-purple-50 shadow-sm"
+                    : "border-gray-200 hover:border-purple-300 hover:bg-gray-50"
                 }`}
               >
-                <div className={`h-8 rounded-lg bg-gradient-to-br ${t.gradient} mb-2`} />
-                <p className="text-white text-xs font-medium">{t.name}</p>
+                <div className={`h-10 rounded-lg bg-gradient-to-br ${t.gradient} mb-2 shadow-inner`} />
+                <p className="text-gray-700 text-xs font-medium">{t.name}</p>
               </button>
             ))}
           </div>
@@ -732,7 +732,7 @@ function CoverPanel({
 
         <button
           onClick={onSave}
-          className="w-full bg-purple-600 hover:bg-purple-500 text-white font-semibold py-3 rounded-xl transition-colors"
+          className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3.5 rounded-xl transition-colors shadow-sm"
         >
           Save Cover Design
         </button>
@@ -756,15 +756,15 @@ function SpinePanel({
   onSave: () => void;
 }) {
   return (
-    <div className="bg-slate-800/50 rounded-2xl p-6 border border-purple-500/20">
-      <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+      <h3 className="text-gray-900 font-semibold mb-5 flex items-center gap-2 text-lg">
         <span>📚</span> Spine & Back Cover
       </h3>
 
       <div className="grid md:grid-cols-2 gap-6">
         {/* Spine Preview */}
         <div className="flex flex-col items-center">
-          <p className="text-purple-300 text-sm mb-3">Spine Preview (as seen on bookshelf)</p>
+          <p className="text-gray-600 text-sm mb-3 font-medium">Spine Preview (as seen on bookshelf)</p>
           <div className="relative">
             {/* Mini spine visualization */}
             <div
@@ -787,9 +787,9 @@ function SpinePanel({
               </div>
             </div>
             {/* Shadow */}
-            <div className="absolute -bottom-2 left-2 right-2 h-4 bg-black/30 blur-md rounded-full" />
+            <div className="absolute -bottom-2 left-2 right-2 h-4 bg-black/20 blur-md rounded-full" />
           </div>
-          <p className="text-purple-400/60 text-xs mt-4 text-center">
+          <p className="text-gray-400 text-xs mt-4 text-center">
             This is how your book looks on a shelf!
           </p>
         </div>
@@ -797,23 +797,23 @@ function SpinePanel({
         {/* Back Cover Content */}
         <div className="space-y-4">
           <div>
-            <label className="text-purple-300 text-sm mb-1 block">Dedication (back cover)</label>
+            <label className="text-gray-700 text-sm font-medium mb-1.5 block">Dedication (back cover)</label>
             <textarea
               value={dedication}
               onChange={(e) => onDedicationChange(e.target.value)}
               placeholder="e.g., For Emma and Jake, who make every adventure magical."
               rows={4}
-              className="w-full bg-slate-700/50 border border-purple-500/20 rounded-lg px-4 py-3 text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none transition-all"
             />
           </div>
 
-          <p className="text-purple-400/60 text-xs">
+          <p className="text-gray-400 text-xs">
             The back cover will show a collage of your transformed images along with your dedication message.
           </p>
 
           <button
             onClick={onSave}
-            className="w-full bg-purple-600 hover:bg-purple-500 text-white font-semibold py-3 rounded-xl transition-colors"
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3.5 rounded-xl transition-colors shadow-sm"
           >
             Save Design
           </button>
@@ -836,46 +836,46 @@ function PreviewPanel({
   totalImages: number;
 }) {
   return (
-    <div className="bg-slate-800/50 rounded-2xl p-6 border border-purple-500/20 text-center">
-      <h3 className="text-white font-semibold mb-4 flex items-center justify-center gap-2">
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center">
+      <h3 className="text-gray-900 font-semibold mb-5 flex items-center justify-center gap-2 text-lg">
         <span>✨</span> Your Book Preview
       </h3>
 
       {isAllComplete ? (
         <div className="space-y-4">
-          <div className="text-green-400 text-lg font-medium">
+          <div className="text-emerald-600 text-lg font-semibold">
             All {totalImages} images are transformed!
           </div>
-          <p className="text-purple-300">
+          <p className="text-gray-600">
             Your book is ready. Use the rotation controls above to see all angles.
           </p>
           <Link href={`/books/${bookId}/preview`}>
-            <button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold px-8 py-4 rounded-xl shadow-lg shadow-purple-500/30 transition-all hover:scale-105">
+            <button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold px-8 py-4 rounded-xl shadow-lg shadow-purple-500/20 transition-all hover:scale-105">
               Open Full Book Preview →
             </button>
           </Link>
         </div>
       ) : totalImages > 0 ? (
         <div className="space-y-4">
-          <div className="text-purple-300">
+          <div className="text-gray-700 font-medium">
             {completedImages} of {totalImages} images ready
           </div>
-          <p className="text-purple-400/70">
+          <p className="text-gray-500">
             Your images are being transformed into Disney-style illustrations.
             You can preview while we work!
           </p>
           <Link href={`/books/${bookId}/preview`}>
-            <button className="bg-purple-600 hover:bg-purple-500 text-white font-semibold px-6 py-3 rounded-xl transition-colors">
+            <button className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors shadow-sm">
               Preview Work in Progress
             </button>
           </Link>
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="text-purple-400/70">
+          <div className="text-gray-500 font-medium">
             No photos uploaded yet
           </div>
-          <p className="text-purple-400/50">
+          <p className="text-gray-400">
             Go to the Pages tab and upload some photos to get started!
           </p>
         </div>
