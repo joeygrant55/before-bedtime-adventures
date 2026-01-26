@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 import { UserButton } from "@clerk/nextjs";
 
 import { BookCard } from "@/components/dashboard/BookCard";
@@ -104,10 +105,16 @@ function DashboardContent() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl">📚</span>
-            <span className="font-semibold text-gray-900 hidden sm:inline">Before Bedtime Adventures</span>
+        <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
+          <Link href="/">
+            <Image
+              src="/logo.png"
+              alt="Before Bedtime Adventures"
+              width={180}
+              height={136}
+              className="h-14 w-auto"
+              priority
+            />
           </Link>
           
           <div className="flex items-center gap-4">

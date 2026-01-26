@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { UserButton } from "@clerk/nextjs";
 
 interface AppHeaderProps {
@@ -16,7 +17,7 @@ export function AppHeader({
 }: AppHeaderProps) {
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-100">
-      <div className="max-w-6xl mx-auto px-6 py-4">
+      <div className="max-w-6xl mx-auto px-6 py-3">
         <div className="flex justify-between items-center">
           {/* Left side */}
           <div className="flex items-center gap-4">
@@ -31,9 +32,15 @@ export function AppHeader({
                 <span className="hidden sm:inline">{backLabel}</span>
               </Link>
             ) : (
-              <Link href="/dashboard" className="flex items-center gap-2">
-                <span className="text-2xl">📚</span>
-                <span className="font-semibold text-gray-900 hidden sm:inline">Before Bedtime Adventures</span>
+              <Link href="/dashboard">
+                <Image
+                  src="/logo.png"
+                  alt="Before Bedtime Adventures"
+                  width={180}
+                  height={136}
+                  className="h-14 w-auto"
+                  priority
+                />
               </Link>
             )}
           </div>

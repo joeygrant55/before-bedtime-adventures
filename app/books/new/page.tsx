@@ -6,6 +6,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { useToast } from "@/components/ui/Toast";
 import { ErrorBoundary, FieldError } from "@/components/ui/ErrorBoundary";
 import { motion } from "framer-motion";

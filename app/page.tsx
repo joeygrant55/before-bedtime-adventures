@@ -128,10 +128,16 @@ export default function Home() {
     <div className="min-h-screen bg-white">
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-white border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl">📚</span>
-            <span className="font-semibold text-gray-900 hidden sm:inline">Before Bedtime Adventures</span>
+        <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
+          <Link href="/">
+            <Image
+              src="/logo.png"
+              alt="Before Bedtime Adventures"
+              width={180}
+              height={136}
+              className="h-14 w-auto"
+              priority
+            />
           </Link>
           
           <div className="flex items-center gap-3">
