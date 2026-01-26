@@ -8,8 +8,8 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./tests/setup.tsx"],
-    include: ["tests/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
-    exclude: ["tests/e2e/**/*"],
+    include: ["tests/**/*.test.{ts,tsx}"], // Only .test.ts files (unit/integration)
+    exclude: ["tests/e2e/**/*", "tests/**/*.spec.ts"], // Exclude e2e and playwright specs
     coverage: {
       reporter: ["text", "json", "html"],
       include: ["lib/**/*.ts", "components/**/*.tsx"],
