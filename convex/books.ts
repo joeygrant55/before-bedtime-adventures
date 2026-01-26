@@ -88,7 +88,20 @@ export const getBook = query({
       })
     );
 
-    return { ...book, pages: pagesWithImages };
+    // Resolve hero image URL if set in cover design
+    let heroImageUrl: string | null = null;
+    if (book.coverDesign?.heroImageId) {
+      heroImageUrl = await ctx.storage.getUrl(book.coverDesign.heroImageId);
+    }
+
+    return { 
+      ...book, 
+      pages: pagesWithImages,
+      coverDesign: book.coverDesign ? {
+        ...book.coverDesign,
+        heroImageUrl,
+      } : undefined,
+    };
   },
 });
 

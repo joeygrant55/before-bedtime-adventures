@@ -135,12 +135,17 @@ export default function BookEditorPage({
 
   // Handle cover save
   const handleSaveCover = async () => {
+    // Get the selected hero image's storage ID
+    const selectedImage = coverHeroIndex >= 0 ? completedCartoonImages[coverHeroIndex] : null;
+    const heroImageId = selectedImage?.bakedImageId || selectedImage?.cartoonImageId || undefined;
+
     await updateCoverDesign({
       bookId,
       coverDesign: {
         title: coverTitle || book.title,
         subtitle: coverSubtitle || undefined,
         authorLine: coverAuthorLine || undefined,
+        heroImageId: heroImageId,
         theme: coverTheme,
         dedication: coverDedication || undefined,
       },
@@ -496,7 +501,7 @@ function PagesPanel({
                         {image.bakedUrl ? "Final" : image.cartoonUrl ? "Cartoon" : "Processing..."}
                         {image.bakingStatus === "baking" && " (Baking text...)"}
                       </p>
-                      <div className="aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-purple-100 to-pink-100 relative group/cartoon shadow-sm">
+                      <div className="aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-purple-100 to-pink-100 relative shadow-sm">
                         {/* Show baked image if available, otherwise cartoon */}
                         {(image.bakedUrl || image.cartoonUrl) ? (
                           <>
@@ -514,18 +519,6 @@ function PagesPanel({
                                 </div>
                               </div>
                             )}
-                            {/* Add/Edit Text Button - shown on hover for completed images */}
-                            {image.bakingStatus !== "baking" && (
-                              <button
-                                onClick={() => handleOpenOverlayEditor(image)}
-                                className="absolute inset-0 bg-black/40 opacity-0 group-hover/cartoon:opacity-100 transition-opacity flex items-center justify-center"
-                              >
-                                <div className="bg-white hover:bg-gray-50 text-gray-900 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 shadow-lg">
-                                  <span>📝</span>
-                                  <span>{image.bakedUrl ? "Edit Text" : "Add Text"}</span>
-                                </div>
-                              </button>
-                            )}
                           </>
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-purple-500">
@@ -538,6 +531,19 @@ function PagesPanel({
                       </div>
                     </div>
                   </div>
+
+                  {/* Add Text Button - Always visible below images */}
+                  {image.generationStatus === "completed" && image.bakingStatus !== "baking" && (
+                    <button
+                      onClick={() => handleOpenOverlayEditor(image)}
+                      className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-900 hover:bg-gray-800 text-white rounded-xl transition-colors font-medium text-sm"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      <span>{image.bakedUrl ? "Edit Text Overlay" : "Add Text to This Page"}</span>
+                    </button>
+                  )}
                 </div>
               ))}
 
