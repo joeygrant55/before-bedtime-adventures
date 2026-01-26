@@ -49,8 +49,9 @@ export default function DashboardPage() {
 
   // Handle delete book
   const handleDeleteBook = async (bookId: string) => {
+    if (!user) return;
     try {
-      await deleteBook({ bookId: bookId as any });
+      await deleteBook({ clerkId: user.id, bookId: bookId as any });
     } catch (error) {
       console.error("Failed to delete book:", error);
     }

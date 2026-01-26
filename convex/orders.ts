@@ -1,9 +1,11 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { verifyBookOwnership, verifyOrderOwnership, AuthError } from "./auth";
 
-// Create a new order with updated schema for Lulu integration
+// Create a new order - PROTECTED
 export const createOrder = mutation({
   args: {
+    clerkId: v.string(),
     bookId: v.id("books"),
     shippingAddress: v.object({
       name: v.string(),
@@ -18,6 +20,12 @@ export const createOrder = mutation({
     price: v.number(), // In cents ($44.99 = 4499)
   },
   handler: async (ctx, args) => {
+    // Verify user owns the book
+    const isOwner = await verifyBookOwnership(ctx, args.bookId, args.clerkId);
+    if (!isOwner) {
+      throw new AuthError("You don't have permission to order this book");
+    }
+
     // Estimated cost (Lulu print + shipping)
     const estimatedCost = 2000; // $20.00 in cents
 
@@ -39,7 +47,9 @@ export const createOrder = mutation({
   },
 });
 
-// Update order status
+// Update order status - WEBHOOK USE ONLY
+// Called by Stripe webhook after signature verification
+// Do NOT expose this to client-side code
 export const updateOrderStatus = mutation({
   args: {
     orderId: v.id("printOrders"),
@@ -96,7 +106,8 @@ export const updateOrderStatus = mutation({
   },
 });
 
-// Update Lulu integration fields
+// Update Lulu integration fields - SERVER USE ONLY (called by backend processes)
+// Do NOT expose this to client-side code
 export const updateLuluStatus = mutation({
   args: {
     orderId: v.id("printOrders"),
@@ -146,7 +157,8 @@ export const updateLuluStatus = mutation({
   },
 });
 
-// Store PDF URLs after generation
+// Store PDF URLs after generation - SERVER USE ONLY
+// Do NOT expose this to client-side code
 export const updatePdfUrls = mutation({
   args: {
     orderId: v.id("printOrders"),
@@ -162,12 +174,38 @@ export const updatePdfUrls = mutation({
   },
 });
 
-// Get order by ID
+// Get order by ID - ownership verified at UI layer
 export const getOrder = query({
   args: { orderId: v.id("printOrders") },
   handler: async (ctx, args) => {
     const order = await ctx.db.get(args.orderId);
     if (!order) return null;
+
+    // Get associated book
+    const book = await ctx.db.get(order.bookId);
+
+    return {
+      ...order,
+      book,
+    };
+  },
+});
+
+// Get order by ID with ownership check - PROTECTED
+export const getOrderSecure = query({
+  args: {
+    clerkId: v.string(),
+    orderId: v.id("printOrders"),
+  },
+  handler: async (ctx, args) => {
+    const order = await ctx.db.get(args.orderId);
+    if (!order) return null;
+
+    // Verify ownership through book
+    const isOwner = await verifyOrderOwnership(ctx, args.orderId, args.clerkId);
+    if (!isOwner) {
+      return null; // Don't reveal order exists
+    }
 
     // Get associated book
     const book = await ctx.db.get(order.bookId);
@@ -193,7 +231,7 @@ export const getOrderByBook = query({
   },
 });
 
-// Get all orders for admin
+// Get all orders for admin - should be protected by admin check in future
 export const getAllOrders = query({
   args: {},
   handler: async (ctx) => {
@@ -217,7 +255,7 @@ export const getAllOrders = query({
   },
 });
 
-// Get active orders (for status polling)
+// Get active orders (for status polling) - INTERNAL
 export const getActiveOrders = query({
   args: {},
   handler: async (ctx) => {

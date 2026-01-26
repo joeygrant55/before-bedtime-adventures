@@ -22,12 +22,12 @@ export default function NewBookPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!getUserByClerkId || !title.trim()) return;
+    if (!user || !title.trim()) return;
 
     setIsCreating(true);
     try {
       const bookId = await createBook({
-        userId: getUserByClerkId._id,
+        clerkId: user.id,
         title: title.trim(),
         pageCount,
       });

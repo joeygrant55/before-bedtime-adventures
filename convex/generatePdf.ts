@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { action } from "./_generated/server";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { PDFDocument, rgb, StandardFonts, degrees } from "pdf-lib";
 import { Id } from "./_generated/dataModel";
 
@@ -136,7 +136,7 @@ export const generateInteriorPdf = action({
       const pdfId = await ctx.storage.store(pdfBlob);
 
       // Update book with PDF reference
-      await ctx.runMutation(api.books.updatePrintPdf, {
+      await ctx.runMutation(internal.books.internalUpdatePrintPdf, {
         bookId: args.bookId,
         interiorPdfId: pdfId,
       });
@@ -260,7 +260,7 @@ export const generateCoverPdf = action({
       const pdfId = await ctx.storage.store(pdfBlob);
 
       // Update book with PDF reference
-      await ctx.runMutation(api.books.updatePrintPdf, {
+      await ctx.runMutation(internal.books.internalUpdatePrintPdf, {
         bookId: args.bookId,
         coverPdfId: pdfId,
       });
@@ -297,7 +297,7 @@ export const generateAllPdfs = action({
 
     try {
       // Update book status
-      await ctx.runMutation(api.books.updatePrintStatus, {
+      await ctx.runMutation(internal.books.internalUpdatePrintStatus, {
         bookId: args.bookId,
         printStatus: "generating_pdfs",
       });
@@ -325,7 +325,7 @@ export const generateAllPdfs = action({
       const coverUrl = await ctx.storage.getUrl(coverResult.pdfId);
 
       // Update book status
-      await ctx.runMutation(api.books.updatePrintStatus, {
+      await ctx.runMutation(internal.books.internalUpdatePrintStatus, {
         bookId: args.bookId,
         printStatus: "pdfs_ready",
       });
@@ -343,7 +343,7 @@ export const generateAllPdfs = action({
       console.error("❌ Error generating PDFs:", error);
 
       // Update status to indicate failure
-      await ctx.runMutation(api.books.updatePrintStatus, {
+      await ctx.runMutation(internal.books.internalUpdatePrintStatus, {
         bookId: args.bookId,
         printStatus: "editing",
       });
