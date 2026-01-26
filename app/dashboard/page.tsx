@@ -13,6 +13,7 @@ import { UserButton } from "@clerk/nextjs";
 import { BookCard } from "@/components/dashboard/BookCard";
 import { OrdersSection } from "@/components/dashboard/OrdersSection";
 import { ErrorBoundary, ApiError } from "@/components/ui/ErrorBoundary";
+import { Suspense } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { trackUserLogin, identifyUser, trackFunnelStep } from "@/lib/analytics";
 
@@ -177,8 +178,10 @@ function DashboardContent() {
           </div>
         )}
 
-        {/* Orders */}
-        <OrdersSection />
+        {/* Orders - wrapped to prevent crashes */}
+        <ErrorBoundary fallback={null}>
+          <OrdersSection />
+        </ErrorBoundary>
 
         {/* Loading */}
         {books === undefined ? (

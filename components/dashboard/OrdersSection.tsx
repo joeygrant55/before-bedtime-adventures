@@ -5,83 +5,83 @@ import { api } from "@/convex/_generated/api";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { OrderCardSkeleton } from "@/components/ui/Skeleton";
 
 // Status configuration
 const STATUS_CONFIG: Record<string, { label: string; icon: string; color: string; bgColor: string }> = {
   pending_payment: {
     label: "Awaiting Payment",
     icon: "💳",
-    color: "text-yellow-400",
-    bgColor: "bg-yellow-500/20",
+    color: "text-yellow-600",
+    bgColor: "bg-yellow-100",
   },
   payment_received: {
     label: "Payment Received",
     icon: "✅",
-    color: "text-green-400",
-    bgColor: "bg-green-500/20",
+    color: "text-green-600",
+    bgColor: "bg-green-100",
   },
   generating_pdfs: {
     label: "Creating Book",
     icon: "📄",
-    color: "text-blue-400",
-    bgColor: "bg-blue-500/20",
+    color: "text-blue-600",
+    bgColor: "bg-blue-100",
   },
   submitting_to_lulu: {
     label: "Submitting to Printer",
     icon: "📤",
-    color: "text-purple-400",
-    bgColor: "bg-purple-500/20",
+    color: "text-purple-600",
+    bgColor: "bg-purple-100",
   },
   submitted: {
     label: "Sent to Printer",
     icon: "🖨️",
-    color: "text-purple-400",
-    bgColor: "bg-purple-500/20",
+    color: "text-purple-600",
+    bgColor: "bg-purple-100",
   },
   in_production: {
     label: "Printing",
     icon: "📖",
-    color: "text-indigo-400",
-    bgColor: "bg-indigo-500/20",
+    color: "text-indigo-600",
+    bgColor: "bg-indigo-100",
   },
   shipped: {
     label: "Shipped",
     icon: "📦",
-    color: "text-teal-400",
-    bgColor: "bg-teal-500/20",
+    color: "text-teal-600",
+    bgColor: "bg-teal-100",
   },
   delivered: {
     label: "Delivered",
     icon: "🎉",
-    color: "text-green-400",
-    bgColor: "bg-green-500/20",
+    color: "text-green-600",
+    bgColor: "bg-green-100",
   },
   failed: {
     label: "Issue",
     icon: "⚠️",
-    color: "text-red-400",
-    bgColor: "bg-red-500/20",
+    color: "text-red-600",
+    bgColor: "bg-red-100",
   },
 };
 
 export function OrdersSection() {
   const { user } = useUser();
-  const orders = useQuery(
-    api.orders.getUserOrders,
-    user ? { clerkId: user.id } : "skip"
-  );
-
-  // Loading state
-  if (orders === undefined) {
-    return (
-      <div className="mb-10" aria-busy="true" aria-label="Loading orders">
-        <div className="h-6 w-32 bg-slate-700/50 rounded animate-pulse mb-4" />
-        <div className="space-y-4">
-          <OrderCardSkeleton />
-        </div>
-      </div>
+  
+  // Wrap in try-catch via the query
+  let orders;
+  try {
+    orders = useQuery(
+      api.orders.getUserOrders,
+      user ? { clerkId: user.id } : "skip"
     );
+  } catch (error) {
+    console.error("Failed to load orders:", error);
+    return null; // Silently fail - don't crash the dashboard
+  }
+
+  // Loading state - show nothing while loading
+  if (orders === undefined) {
+    return null;
   }
 
   // Don't render if no orders
@@ -91,20 +91,16 @@ export function OrdersSection() {
 
   return (
     <motion.section
-      className="mb-10"
+      className="mb-8"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 }}
-      aria-labelledby="orders-heading"
     >
-      <h2 
-        id="orders-heading" 
-        className="text-xl font-bold text-white mb-4 flex items-center gap-2"
-      >
-        <span aria-hidden="true">📦</span> Your Orders
+      <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+        <span>📦</span> Your Orders
       </h2>
 
-      <div className="grid gap-4" role="list" aria-label="Order list">
+      <div className="space-y-3">
         {orders.map((order) => {
           const statusConfig = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending_payment;
           const progressPercent = 
@@ -120,70 +116,46 @@ export function OrdersSection() {
             <Link
               key={order._id}
               href={`/orders/${order._id}`}
-              className="group focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-slate-900 rounded-xl"
-              role="listitem"
+              className="block"
             >
-              <div className="bg-white/5 backdrop-blur-xl rounded-xl p-4 border border-white/10 hover:border-purple-500/50 transition-all hover:bg-white/10">
+              <div className="bg-white rounded-xl p-4 border border-gray-200 hover:border-purple-300 transition-all hover:shadow-sm">
                 <div className="flex items-center gap-4">
                   {/* Book thumbnail */}
-                  <div 
-                    className="w-12 h-16 bg-gradient-to-br from-purple-600 to-purple-800 rounded-lg flex items-center justify-center text-xl flex-shrink-0"
-                    aria-hidden="true"
-                  >
+                  <div className="w-12 h-16 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg flex items-center justify-center text-xl flex-shrink-0">
                     📚
                   </div>
 
                   {/* Order info */}
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-white font-medium truncate">
+                    <h3 className="text-gray-900 font-medium truncate">
                       {order.book?.title || "Your Book"}
                     </h3>
-                    <p className="text-purple-400 text-sm">
+                    <p className="text-gray-500 text-sm">
                       Order #{order._id.slice(-8).toUpperCase()}
                     </p>
-                    <p className="text-purple-500/60 text-xs">
-                      <time dateTime={new Date(order.createdAt).toISOString()}>
-                        {new Date(order.createdAt).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </time>
+                    <p className="text-gray-400 text-xs">
+                      {new Date(order.createdAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
                     </p>
                   </div>
 
                   {/* Status badge */}
-                  <div 
-                    className={`${statusConfig.bgColor} px-3 py-1.5 rounded-full flex items-center gap-1.5`}
-                    role="status"
-                    aria-label={`Status: ${statusConfig.label}`}
-                  >
-                    <span className="text-sm" aria-hidden="true">{statusConfig.icon}</span>
+                  <div className={`${statusConfig.bgColor} px-3 py-1.5 rounded-full flex items-center gap-1.5`}>
+                    <span className="text-sm">{statusConfig.icon}</span>
                     <span className={`text-sm font-medium ${statusConfig.color}`}>
                       {statusConfig.label}
                     </span>
                   </div>
-
-                  {/* Tracking link if shipped */}
-                  {order.trackingNumber && order.status === "shipped" && (
-                    <div className="text-teal-400 text-sm" aria-label="Track shipment">
-                      Track →
-                    </div>
-                  )}
                 </div>
 
                 {/* Progress bar for active orders */}
                 {["payment_received", "generating_pdfs", "submitting_to_lulu", "submitted", "in_production"].includes(order.status) && (
-                  <div className="mt-3 pt-3 border-t border-white/10">
+                  <div className="mt-3 pt-3 border-t border-gray-100">
                     <div className="flex items-center gap-2">
-                      <div 
-                        className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden"
-                        role="progressbar"
-                        aria-valuenow={progressPercent}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-label={`Order progress: ${progressPercent}%`}
-                      >
+                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                         <motion.div
                           className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
                           initial={{ width: "0%" }}
@@ -191,7 +163,7 @@ export function OrdersSection() {
                           transition={{ duration: 0.5 }}
                         />
                       </div>
-                      <span className="text-purple-400 text-xs" aria-hidden="true">
+                      <span className="text-gray-400 text-xs">
                         {order.status === "payment_received" && "Processing..."}
                         {order.status === "generating_pdfs" && "Creating book..."}
                         {order.status === "submitting_to_lulu" && "Submitting..."}
