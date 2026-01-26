@@ -83,9 +83,10 @@ function DashboardContent() {
 
   // Handle delete
   const handleDeleteBook = async (bookId: string) => {
+    if (!user) return;
     setDeleteError(null);
     try {
-      await deleteBook({ bookId: bookId as any });
+      await deleteBook({ clerkId: user.id, bookId: bookId as any });
       success("Book deleted");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to delete book";

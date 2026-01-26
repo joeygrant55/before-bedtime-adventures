@@ -149,7 +149,7 @@ export const submitPrintJob = action({
 
     try {
       // Get order details
-      const order = await ctx.runQuery(api.orders.getOrder, { orderId: args.orderId });
+      const order = await ctx.runQuery(internal.orders.getOrder, { orderId: args.orderId });
 
       if (!order) {
         throw new Error("Order not found");
@@ -165,7 +165,7 @@ export const submitPrintJob = action({
       }
 
       // Update status to submitting
-      await ctx.runMutation(api.orders.updateOrderStatus, {
+      await ctx.runMutation(internal.orders.updateOrderStatus, {
         orderId: args.orderId,
         status: "submitting_to_lulu",
       });
@@ -217,7 +217,7 @@ export const submitPrintJob = action({
         const error = await response.text();
         console.error("❌ Lulu API error:", response.status, error);
 
-        await ctx.runMutation(api.orders.updateOrderStatus, {
+        await ctx.runMutation(internal.orders.updateOrderStatus, {
           orderId: args.orderId,
           status: "failed",
         });
@@ -229,7 +229,7 @@ export const submitPrintJob = action({
       console.log("✅ Lulu print job created:", result.id);
 
       // Update order with Lulu job ID
-      await ctx.runMutation(api.orders.updateLuluStatus, {
+      await ctx.runMutation(internal.orders.updateLuluStatus, {
         orderId: args.orderId,
         luluPrintJobId: String(result.id),
         luluStatus: result.status.name,
@@ -240,7 +240,7 @@ export const submitPrintJob = action({
     } catch (error) {
       console.error("❌ Error submitting print job:", error);
 
-      await ctx.runMutation(api.orders.updateOrderStatus, {
+      await ctx.runMutation(internal.orders.updateOrderStatus, {
         orderId: args.orderId,
         status: "failed",
       });
@@ -263,7 +263,7 @@ export const checkPrintJobStatus = action({
   handler: async (ctx, args): Promise<{ success: boolean; status?: string; error?: string }> => {
     try {
       // Get order details
-      const order = await ctx.runQuery(api.orders.getOrder, { orderId: args.orderId });
+      const order = await ctx.runQuery(internal.orders.getOrder, { orderId: args.orderId });
 
       if (!order || !order.luluPrintJobId) {
         return { success: false, error: "No Lulu job ID found for order" };
@@ -299,7 +299,7 @@ export const checkPrintJobStatus = action({
       }
 
       // Update order status
-      await ctx.runMutation(api.orders.updateLuluStatus, {
+      await ctx.runMutation(internal.orders.updateLuluStatus, {
         orderId: args.orderId,
         luluStatus,
         status: ourStatus as "submitted" | "in_production" | "shipped" | "delivered" | "failed",
@@ -326,7 +326,7 @@ export const pollActiveOrders = action({
   args: {},
   handler: async (ctx): Promise<{ checked: number; updated: number }> => {
     // Get all active orders
-    const activeOrders = await ctx.runQuery(api.orders.getActiveOrders);
+    const activeOrders = await ctx.runQuery(internal.orders.getActiveOrders);
 
     let updated = 0;
 

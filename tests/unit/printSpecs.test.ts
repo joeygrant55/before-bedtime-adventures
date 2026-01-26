@@ -71,9 +71,10 @@ describe("Print Specifications", () => {
       
       // With 0.25" spine, total width should be:
       // 0.125*2 (bleed) + 0.75*4 (wrap) + 8.5*2 (covers) + 0.25 (spine) = 20.5"
+      // Height: 0.125*2 (bleed) + 0.75*2 (wrap) + 8.5 (cover) = 10.25"
       expect(dims.spineWidth).toBe(0.25);
       expect(dims.width).toBeCloseTo(20.5, 2);
-      expect(dims.height).toBeCloseTo(10.5, 2);
+      expect(dims.height).toBeCloseTo(10.25, 2);
     });
 
     it("includes pixel dimensions", () => {

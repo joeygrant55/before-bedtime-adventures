@@ -1,6 +1,17 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-const isPublicRoute = createRouteMatcher(["/", "/sign-in(.*)", "/sign-up(.*)", "/api/demo(.*)"]);
+const isPublicRoute = createRouteMatcher([
+  "/",
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/api/demo(.*)",
+  // Stripe webhook - security handled by signature verification in route handler
+  "/api/stripe/webhook",
+  // Public pages (no auth required)
+  "/privacy",
+  "/terms",
+  // Note: /settings is intentionally NOT public - it shows user PII
+]);
 
 export default clerkMiddleware(async (auth, request) => {
   if (!isPublicRoute(request)) {
