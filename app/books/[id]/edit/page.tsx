@@ -372,15 +372,17 @@ export default function BookEditorPage({
                     <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin flex-shrink-0" />
                     <span className="text-xs sm:text-sm font-medium truncate">Creating magic...</span>
                   </div>
-                ) : isAllComplete ? (
+                ) : isAllComplete && pages.length > 0 ? (
                   <div className="flex items-center gap-1.5 sm:gap-2 text-emerald-600">
                     <span className="text-sm sm:text-base">✨</span>
-                    <span className="text-xs sm:text-sm font-semibold">Book ready!</span>
+                    <span className="text-xs sm:text-sm font-semibold">Your book is ready to preview!</span>
                   </div>
                 ) : totalImages > 0 ? (
-                  <span className="text-gray-600 text-xs sm:text-sm font-medium">{completedImages}/{totalImages} images</span>
+                  <span className="text-gray-600 text-xs sm:text-sm font-medium">{pages.length} {pages.length === 1 ? 'page' : 'pages'} • {completedImages}/{totalImages} images ready</span>
+                ) : pages.length > 0 ? (
+                  <span className="text-gray-600 text-xs sm:text-sm font-medium">{pages.length} {pages.length === 1 ? 'page' : 'pages'} created</span>
                 ) : (
-                  <span className="text-gray-400 text-xs sm:text-sm truncate">Upload photos to start</span>
+                  <span className="text-gray-400 text-xs sm:text-sm truncate">Add pages to start</span>
                 )}
               </div>
               {totalImages > 0 && (
@@ -397,14 +399,14 @@ export default function BookEditorPage({
 
             {/* Order Button */}
             <div className="relative group flex-shrink-0">
-              <Link href={isAllComplete ? `/books/${bookId}/checkout` : "#"}>
+              <Link href={(isAllComplete && pages.length >= 5) ? `/books/${bookId}/checkout` : "#"}>
                 <button
                   className={`px-3 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center gap-1 sm:gap-2 ${
-                    isAllComplete
+                    isAllComplete && pages.length >= 5
                       ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-500/25"
                       : "bg-gray-100 text-gray-400 cursor-not-allowed"
                   }`}
-                  disabled={!isAllComplete}
+                  disabled={!isAllComplete || pages.length < 5}
                 >
                   <span className="text-sm sm:text-base">🛒</span>
                   <span className="hidden sm:inline">Order Book</span>
@@ -412,9 +414,11 @@ export default function BookEditorPage({
                 </button>
               </Link>
               {/* Tooltip for disabled state - hidden on mobile */}
-              {!isAllComplete && (
+              {(!isAllComplete || pages.length < 5) && (
                 <div className="hidden sm:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
-                  Complete all images to order
+                  {pages.length < 5 
+                    ? `Need at least 5 pages (you have ${pages.length})`
+                    : "Complete all images to order"}
                   <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900" />
                 </div>
               )}
@@ -440,9 +444,16 @@ function PagesPanel({
   currentPage?: PageWithImages;
   onDeleteImage: (imageId: Id<"images">) => void;
 }) {
+  const { user } = useUser();
+  
   // State for text overlay editor
   const [editingImageId, setEditingImageId] = useState<Id<"images"> | null>(null);
   const [editingImageUrl, setEditingImageUrl] = useState<string | null>(null);
+  
+  // Mutations
+  const addPage = useMutation(api.books.addPage);
+  const removePage = useMutation(api.books.removePage);
+  const reorderPages = useMutation(api.books.reorderPages);
 
   // Open text overlay editor for an image
   const handleOpenOverlayEditor = (image: ImageWithUrls) => {
@@ -458,6 +469,67 @@ function PagesPanel({
     setEditingImageUrl(null);
   };
 
+  // Add a new page
+  const handleAddPage = async () => {
+    if (!user || !currentPage) return;
+    await addPage({
+      clerkId: user.id,
+      bookId: currentPage.bookId,
+    });
+    // Switch to the new page
+    onPageChange(pages.length);
+  };
+
+  // Delete the current page
+  const handleDeletePage = async () => {
+    if (!user || !currentPage) return;
+    if (!confirm("Delete this page and all its photos? This cannot be undone.")) return;
+    
+    await removePage({
+      clerkId: user.id,
+      pageId: currentPage._id,
+    });
+    
+    // Switch to previous page if we deleted the last one
+    if (currentPageIndex >= pages.length - 1 && currentPageIndex > 0) {
+      onPageChange(currentPageIndex - 1);
+    }
+  };
+
+  // Move page up (earlier in the book)
+  const handleMovePageUp = async () => {
+    if (!user || !currentPage || currentPageIndex === 0) return;
+    
+    const newOrdering = [...pages];
+    [newOrdering[currentPageIndex - 1], newOrdering[currentPageIndex]] = 
+      [newOrdering[currentPageIndex], newOrdering[currentPageIndex - 1]];
+    
+    await reorderPages({
+      clerkId: user.id,
+      bookId: currentPage.bookId,
+      pageOrdering: newOrdering.map(p => p._id),
+    });
+    
+    onPageChange(currentPageIndex - 1);
+  };
+
+  // Move page down (later in the book)
+  const handleMovePageDown = async () => {
+    if (!user || !currentPage || currentPageIndex === pages.length - 1) return;
+    
+    const newOrdering = [...pages];
+    [newOrdering[currentPageIndex], newOrdering[currentPageIndex + 1]] = 
+      [newOrdering[currentPageIndex + 1], newOrdering[currentPageIndex]];
+    
+    await reorderPages({
+      clerkId: user.id,
+      bookId: currentPage.bookId,
+      pageOrdering: newOrdering.map(p => p._id),
+    });
+    
+    onPageChange(currentPageIndex + 1);
+  };
+
   return (
     <div className="space-y-4">
       {/* Page Navigator Strip */}
@@ -465,7 +537,7 @@ function PagesPanel({
         <div className="flex items-center justify-between mb-3 gap-2">
           <button
             onClick={() => onPageChange(Math.max(0, currentPageIndex - 1))}
-            disabled={currentPageIndex === 0}
+            disabled={currentPageIndex === 0 || pages.length === 0}
             className="p-1.5 sm:p-2 rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0"
           >
             <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -513,11 +585,20 @@ function PagesPanel({
                 </button>
               );
             })}
+
+            {/* Add Page Button */}
+            <button
+              onClick={handleAddPage}
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl text-xs font-semibold transition-all flex-shrink-0 bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 shadow-sm hover:shadow-md flex items-center justify-center"
+              title="Add new page"
+            >
+              +
+            </button>
           </div>
 
           <button
             onClick={() => onPageChange(Math.min(pages.length - 1, currentPageIndex + 1))}
-            disabled={currentPageIndex === pages.length - 1}
+            disabled={currentPageIndex === pages.length - 1 || pages.length === 0}
             className="p-1.5 sm:p-2 rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0"
           >
             <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -526,16 +607,98 @@ function PagesPanel({
           </button>
         </div>
 
-        <div className="text-center text-gray-500 text-xs sm:text-sm font-medium mt-2">
-          Page {currentPageIndex + 1} of {pages.length}
+        <div className="flex items-center justify-between">
+          <div className="text-center text-gray-500 text-xs sm:text-sm font-medium flex-1">
+            {pages.length === 0 ? (
+              <span>No pages yet • <span className="text-purple-600">Click + to start</span></span>
+            ) : (
+              <span>Page {currentPageIndex + 1} of {pages.length} • {pages.length < 10 && "💡 Most books have 10-20 pages"}</span>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Page Editor */}
+      {/* Page Controls - Show when a page is selected */}
       {currentPage && (
+        <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleMovePageUp}
+                disabled={currentPageIndex === 0}
+                className="p-2 rounded-lg bg-gray-50 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all text-sm font-medium flex items-center gap-1"
+                title="Move page earlier"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                <span className="hidden sm:inline">Earlier</span>
+              </button>
+              
+              <button
+                onClick={handleMovePageDown}
+                disabled={currentPageIndex === pages.length - 1}
+                className="p-2 rounded-lg bg-gray-50 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all text-sm font-medium flex items-center gap-1"
+                title="Move page later"
+              >
+                <span className="hidden sm:inline">Later</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+
+            <button
+              onClick={handleDeletePage}
+              className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all text-sm font-medium flex items-center gap-1"
+              title="Delete this page"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              <span className="hidden sm:inline">Delete Page</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+
+      {/* Page Editor */}
+      {pages.length === 0 ? (
+        <div className="bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 rounded-2xl p-8 shadow-sm border border-gray-100 text-center">
+          <div className="max-w-md mx-auto">
+            <div className="text-6xl mb-4">📖</div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Start Your Story</h3>
+            <p className="text-gray-600 mb-6">
+              Click the <span className="font-semibold text-purple-600">+</span> button above to add your first page!
+            </p>
+            <div className="bg-white rounded-xl p-4 text-left">
+              <p className="text-sm text-gray-600 mb-3 font-medium">✨ How it works:</p>
+              <ul className="space-y-2 text-sm text-gray-600">
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-600 font-bold">1.</span>
+                  <span>Add pages as you go — no need to fill them all at once</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-600 font-bold">2.</span>
+                  <span>Upload photos to each page (up to 3 per page)</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-600 font-bold">3.</span>
+                  <span>Reorder pages with the arrow buttons</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-600 font-bold">4.</span>
+                  <span>Most storybooks have 10-20 pages</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      ) : currentPage ? (
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
           <h3 className="text-gray-900 font-semibold mb-4 flex items-center gap-2">
-            <span>📸</span> Page {currentPageIndex + 1} Photo
+            <span>📸</span> Page {currentPageIndex + 1}
           </h3>
 
           {currentPage.images && currentPage.images.length > 0 ? (
@@ -658,7 +821,7 @@ function PagesPanel({
             />
           )}
         </div>
-      )}
+      ) : null}
 
       {/* Text Overlay Editor Modal */}
       {editingImageId && editingImageUrl && (

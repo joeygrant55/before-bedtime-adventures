@@ -56,8 +56,15 @@ export const getBookPages = query({
     const pages = await ctx.db
       .query("pages")
       .withIndex("by_book", (q) => q.eq("bookId", args.bookId))
-      .order("asc")
       .collect();
+
+    // Sort by sortOrder (for new dynamic pages) or pageNumber (for backward compatibility)
+    pages.sort((a, b) => {
+      if (a.sortOrder !== undefined && b.sortOrder !== undefined) {
+        return a.sortOrder - b.sortOrder;
+      }
+      return a.pageNumber - b.pageNumber;
+    });
 
     // Get images for each page with signed URLs
     const pagesWithImages = await Promise.all(

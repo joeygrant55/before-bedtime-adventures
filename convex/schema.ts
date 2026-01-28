@@ -69,7 +69,8 @@ export default defineSchema({
   // Each stop = 1 spread = 2 printed pages
   pages: defineTable({
     bookId: v.id("books"),
-    pageNumber: v.number(), // Stop number (1-14)
+    pageNumber: v.number(), // Stop number (1-14) - DEPRECATED, use sortOrder
+    sortOrder: v.number(), // Order in the book (0-based, for reordering)
     title: v.optional(v.string()), // Location name (e.g., "Magic Kingdom")
     storyText: v.optional(v.string()), // User-written narrative text
 
@@ -85,7 +86,8 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_book", ["bookId"])
-    .index("by_book_and_page", ["bookId", "pageNumber"]),
+    .index("by_book_and_page", ["bookId", "pageNumber"])
+    .index("by_book_and_sort", ["bookId", "sortOrder"]),
 
   images: defineTable({
     pageId: v.id("pages"),

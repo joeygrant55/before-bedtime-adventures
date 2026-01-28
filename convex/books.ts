@@ -2,12 +2,12 @@ import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
 import { verifyBookOwnership, getUserFromClerkId, AuthError } from "./auth";
 
-// Create a new book
+// Create a new book (no pages created upfront)
 export const createBook = mutation({
   args: {
     clerkId: v.string(), // Required for auth
     title: v.string(),
-    pageCount: v.number(),
+    pageCount: v.optional(v.number()), // Optional for backward compatibility
   },
   handler: async (ctx, args) => {
     // Get user from Clerk ID
@@ -19,24 +19,161 @@ export const createBook = mutation({
     const bookId = await ctx.db.insert("books", {
       userId: user._id,
       title: args.title,
-      pageCount: args.pageCount,
+      pageCount: args.pageCount || 0, // Start with 0 pages
       status: "draft",
       characterImages: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
 
-    // Create empty pages for the book
-    for (let i = 1; i <= args.pageCount; i++) {
-      await ctx.db.insert("pages", {
-        bookId,
-        pageNumber: i,
-        createdAt: Date.now(),
+    // No longer pre-creating pages
+    // Pages will be created on-demand when user adds content
+
+    return bookId;
+  },
+});
+
+// Add a new page to a book - PROTECTED
+export const addPage = mutation({
+  args: {
+    clerkId: v.string(),
+    bookId: v.id("books"),
+  },
+  handler: async (ctx, args) => {
+    // Verify ownership
+    const isOwner = await verifyBookOwnership(ctx, args.bookId, args.clerkId);
+    if (!isOwner) {
+      throw new AuthError("You don't have permission to edit this book");
+    }
+
+    // Get all existing pages for this book to determine next sortOrder
+    const existingPages = await ctx.db
+      .query("pages")
+      .withIndex("by_book", (q) => q.eq("bookId", args.bookId))
+      .collect();
+
+    const nextSortOrder = existingPages.length;
+    const nextPageNumber = existingPages.length + 1; // For backward compatibility
+
+    const pageId = await ctx.db.insert("pages", {
+      bookId: args.bookId,
+      pageNumber: nextPageNumber,
+      sortOrder: nextSortOrder,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    // Update book's pageCount
+    await ctx.db.patch(args.bookId, {
+      pageCount: nextPageNumber,
+      updatedAt: Date.now(),
+    });
+
+    return pageId;
+  },
+});
+
+// Remove a page from a book - PROTECTED
+export const removePage = mutation({
+  args: {
+    clerkId: v.string(),
+    pageId: v.id("pages"),
+  },
+  handler: async (ctx, args) => {
+    const page = await ctx.db.get(args.pageId);
+    if (!page) {
+      throw new Error("Page not found");
+    }
+
+    // Verify ownership
+    const isOwner = await verifyBookOwnership(ctx, page.bookId, args.clerkId);
+    if (!isOwner) {
+      throw new AuthError("You don't have permission to edit this book");
+    }
+
+    // Delete all images for this page
+    const images = await ctx.db
+      .query("images")
+      .withIndex("by_page", (q) => q.eq("pageId", args.pageId))
+      .collect();
+
+    for (const image of images) {
+      // Delete storage files
+      await ctx.storage.delete(image.originalImageId);
+      if (image.cartoonImageId) {
+        await ctx.storage.delete(image.cartoonImageId);
+      }
+      if (image.bakedImageId) {
+        await ctx.storage.delete(image.bakedImageId);
+      }
+      if (image.printReadyImageId) {
+        await ctx.storage.delete(image.printReadyImageId);
+      }
+      // Delete text overlays
+      const overlays = await ctx.db
+        .query("textOverlays")
+        .withIndex("by_image", (q) => q.eq("imageId", image._id))
+        .collect();
+      for (const overlay of overlays) {
+        await ctx.db.delete(overlay._id);
+      }
+      // Delete image record
+      await ctx.db.delete(image._id);
+    }
+
+    // Delete the page
+    await ctx.db.delete(args.pageId);
+
+    // Update sort orders for remaining pages
+    const remainingPages = await ctx.db
+      .query("pages")
+      .withIndex("by_book", (q) => q.eq("bookId", page.bookId))
+      .collect();
+
+    // Sort by current sortOrder and reassign
+    remainingPages.sort((a, b) => a.sortOrder - b.sortOrder);
+    for (let i = 0; i < remainingPages.length; i++) {
+      await ctx.db.patch(remainingPages[i]._id, {
+        sortOrder: i,
+        pageNumber: i + 1, // For backward compatibility
         updatedAt: Date.now(),
       });
     }
 
-    return bookId;
+    // Update book's pageCount
+    await ctx.db.patch(page.bookId, {
+      pageCount: remainingPages.length,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+// Reorder pages in a book - PROTECTED
+export const reorderPages = mutation({
+  args: {
+    clerkId: v.string(),
+    bookId: v.id("books"),
+    pageOrdering: v.array(v.id("pages")), // Array of page IDs in new order
+  },
+  handler: async (ctx, args) => {
+    // Verify ownership
+    const isOwner = await verifyBookOwnership(ctx, args.bookId, args.clerkId);
+    if (!isOwner) {
+      throw new AuthError("You don't have permission to edit this book");
+    }
+
+    // Update sortOrder for each page
+    for (let i = 0; i < args.pageOrdering.length; i++) {
+      await ctx.db.patch(args.pageOrdering[i], {
+        sortOrder: i,
+        pageNumber: i + 1, // For backward compatibility
+        updatedAt: Date.now(),
+      });
+    }
+
+    await ctx.db.patch(args.bookId, {
+      updatedAt: Date.now(),
+    });
   },
 });
 
@@ -71,8 +208,15 @@ export const getBook = query({
     const pages = await ctx.db
       .query("pages")
       .withIndex("by_book", (q) => q.eq("bookId", args.bookId))
-      .order("asc")
       .collect();
+
+    // Sort by sortOrder (for new dynamic pages) or pageNumber (for backward compatibility)
+    pages.sort((a, b) => {
+      if (a.sortOrder !== undefined && b.sortOrder !== undefined) {
+        return a.sortOrder - b.sortOrder;
+      }
+      return a.pageNumber - b.pageNumber;
+    });
 
     // Get images for each page
     const pagesWithImages = await Promise.all(
