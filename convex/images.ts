@@ -139,3 +139,21 @@ export const updateCropSettings = mutation({
     });
   },
 });
+
+// STUB: uploadImage - Used by PhotoUploadSlot (temporary)
+// TODO: Refactor PhotoUploadSlot to use generateUploadUrl + createImage pattern
+export const uploadImage = mutation({
+  args: {
+    clerkId: v.string(),
+    pageId: v.id("pages"),
+    imageBase64: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // This is a stub implementation to make PhotoUploadSlot compile
+    // In a real implementation, you would:
+    // 1. Convert base64 to blob
+    // 2. Upload to storage using generateUploadUrl
+    // 3. Create image record with createImage
+    throw new Error("uploadImage is not implemented. Use generateUploadUrl + createImage instead.");
+  },
+});
