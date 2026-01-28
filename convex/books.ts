@@ -73,6 +73,61 @@ export const addPage = mutation({
   },
 });
 
+// Add a new spread (2 pages) to a book - PROTECTED
+export const addSpread = mutation({
+  args: {
+    clerkId: v.string(),
+    bookId: v.id("books"),
+    spreadLayout: v.optional(v.union(
+      v.literal("single"),
+      v.literal("duo"),
+      v.literal("trio")
+    )),
+  },
+  handler: async (ctx, args) => {
+    // Verify ownership
+    const isOwner = await verifyBookOwnership(ctx, args.bookId, args.clerkId);
+    if (!isOwner) {
+      throw new AuthError("You don't have permission to edit this book");
+    }
+
+    // Get all existing pages for this book
+    const existingPages = await ctx.db
+      .query("pages")
+      .withIndex("by_book", (q) => q.eq("bookId", args.bookId))
+      .collect();
+
+    const nextSortOrder = existingPages.length;
+
+    // Create left page (odd) with spreadLayout
+    const leftPageId = await ctx.db.insert("pages", {
+      bookId: args.bookId,
+      pageNumber: nextSortOrder + 1,
+      sortOrder: nextSortOrder,
+      spreadLayout: args.spreadLayout || "duo", // Default to duo (side by side)
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    // Create right page (even)
+    const rightPageId = await ctx.db.insert("pages", {
+      bookId: args.bookId,
+      pageNumber: nextSortOrder + 2,
+      sortOrder: nextSortOrder + 1,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    // Update book's pageCount
+    await ctx.db.patch(args.bookId, {
+      pageCount: nextSortOrder + 2,
+      updatedAt: Date.now(),
+    });
+
+    return { leftPageId, rightPageId };
+  },
+});
+
 // Remove a page from a book - PROTECTED
 export const removePage = mutation({
   args: {

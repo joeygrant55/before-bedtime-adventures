@@ -49,6 +49,24 @@ export const updatePageText = mutation({
   },
 });
 
+// Update spread layout for a page
+export const updateSpreadLayout = mutation({
+  args: {
+    pageId: v.id("pages"),
+    spreadLayout: v.union(
+      v.literal("single"),
+      v.literal("duo"),
+      v.literal("trio")
+    ),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.pageId, {
+      spreadLayout: args.spreadLayout,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
 // Get all pages for a book with signed image URLs
 export const getBookPages = query({
   args: { bookId: v.id("books") },

@@ -82,6 +82,14 @@ export default defineSchema({
       v.literal("image_and_text"), // Image on one page, text on other
     )),
 
+    // === SPREAD LAYOUT (NEW) ===
+    // Layout template for this spread (on odd-numbered/left pages)
+    spreadLayout: v.optional(v.union(
+      v.literal("single"),  // 1 photo spanning the spread
+      v.literal("duo"),     // 2 photos (one per page) - DEFAULT
+      v.literal("trio")     // 3 photos (2 top, 1 bottom)
+    )),
+
     createdAt: v.number(),
     updatedAt: v.number(),
   })

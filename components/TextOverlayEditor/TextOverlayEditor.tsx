@@ -10,16 +10,18 @@ import { TextStyleToolbar } from "./TextStyleToolbar";
 import { POSITION_PRESETS } from "./QuickPositionPresets";
 import { TextOverlayModal } from "./TextOverlayModal";
 import { bakeTextOnCanvas } from "@/lib/bakeTextClient";
+import { SuggestStoryButton } from "../SpreadEditor/SuggestStoryButton";
 
 type TextOverlayEditorProps = {
   imageId: Id<"images">;
   imageUrl: string;
+  bookTitle?: string;
   onClose: () => void;
 };
 
 type PositionPreset = "top" | "center" | "bottom";
 
-export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEditorProps) {
+export function TextOverlayEditor({ imageId, imageUrl, bookTitle = "Your Book", onClose }: TextOverlayEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedOverlayId, setSelectedOverlayId] = useState<Id<"textOverlays"> | null>(null);
   const [isBaking, setIsBaking] = useState(false);
@@ -283,7 +285,7 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
             <div className="space-y-6">
               {/* Text Input (when layer selected) */}
               {selectedOverlayId && (
-                <div>
+                <div className="space-y-3">
                   <label className="block text-sm font-semibold text-gray-900 mb-2">
                     Text Content
                   </label>
@@ -294,6 +296,17 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none font-sans"
                     rows={4}
                   />
+                  
+                  {/* AI Story Suggestion Button */}
+                  <div className="pt-1">
+                    <SuggestStoryButton
+                      imageUrl={imageUrl}
+                      bookTitle={bookTitle}
+                      hasContent={editingContent.trim().length > 0}
+                      onSuggestion={(text) => handleContentChange(text)}
+                      variant="subtle"
+                    />
+                  </div>
                 </div>
               )}
 

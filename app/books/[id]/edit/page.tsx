@@ -5,10 +5,11 @@ import { useQuery, useMutation } from "convex/react";
 import { useUser } from "@clerk/nextjs";
 import { api } from "@/convex/_generated/api";
 import { Id, Doc } from "@/convex/_generated/dataModel";
-import { ImageUpload } from "@/components/ImageUpload";
+import { SpreadEditor, SpreadNavigator } from "@/components/SpreadEditor";
 import { MiniBookPreview } from "@/components/BookPreview/MiniBookPreview";
 import { ExpandableTabs } from "@/components/ui/expandable-tabs";
 import { TextOverlayEditor } from "@/components/TextOverlayEditor";
+import { WriteMyStoryButton } from "@/components/WriteMyStoryButton";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -25,6 +26,7 @@ type PageWithImages = Doc<"pages"> & {
 type EditorMode = "pages" | "cover" | "spine" | "preview";
 type BookView = "front" | "spine" | "back";
 type CoverTheme = "purple-magic" | "ocean-adventure" | "sunset-wonder" | "forest-dreams";
+type SpreadLayout = "single" | "duo" | "trio";
 
 const MODE_TABS = [
   { title: "Pages", icon: "📝" },
@@ -41,6 +43,31 @@ const THEMES: { id: CoverTheme; name: string; gradient: string }[] = [
   { id: "forest-dreams", name: "Forest Dreams", gradient: "from-emerald-600 to-teal-900" },
 ];
 
+// Helper to group pages into spreads
+interface Spread {
+  spreadIndex: number;
+  leftPage: PageWithImages;
+  rightPage?: PageWithImages;
+  layout: SpreadLayout;
+}
+
+function groupPagesIntoSpreads(pages: PageWithImages[]): Spread[] {
+  const spreads: Spread[] = [];
+  for (let i = 0; i < pages.length; i += 2) {
+    const leftPage = pages[i];
+    const rightPage = pages[i + 1];
+    const layout = (leftPage.spreadLayout as SpreadLayout) || "duo";
+    
+    spreads.push({
+      spreadIndex: i / 2,
+      leftPage,
+      rightPage,
+      layout,
+    });
+  }
+  return spreads;
+}
+
 export default function BookEditorPage({
   params,
 }: {
@@ -54,9 +81,13 @@ export default function BookEditorPage({
   // State
   const [activeMode, setActiveMode] = useState<EditorMode>("pages");
   const [bookView, setBookView] = useState<BookView>("front");
-  const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [currentSpreadIndex, setCurrentSpreadIndex] = useState(0);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState("");
+
+  // Text overlay editor state
+  const [editingImageId, setEditingImageId] = useState<Id<"images"> | null>(null);
+  const [editingImageUrl, setEditingImageUrl] = useState<string | null>(null);
 
   // Cover design state
   const [coverTitle, setCoverTitle] = useState("");
@@ -72,7 +103,9 @@ export default function BookEditorPage({
   const pages = useQuery(api.pages.getBookPages, { bookId });
   const updateCoverDesign = useMutation(api.books.updateCoverDesign);
   const updateBookTitle = useMutation(api.books.updateBookTitle);
-  const deleteImage = useMutation(api.images.deleteImage);
+  const addSpread = useMutation(api.books.addSpread);
+  const removePage = useMutation(api.books.removePage);
+  const updateSpreadLayout = useMutation(api.pages.updateSpreadLayout);
 
   // Initialize cover design from book
   useEffect(() => {
@@ -106,7 +139,9 @@ export default function BookEditorPage({
     );
   }
 
-  const currentPage = pages[currentPageIndex] as PageWithImages | undefined;
+  // Group pages into spreads
+  const spreads = groupPagesIntoSpreads(pages as PageWithImages[]);
+  const currentSpread = spreads[currentSpreadIndex];
 
   // Progress calculations
   const allImages = pages.flatMap((page: PageWithImages) => page.images || []);
@@ -120,7 +155,6 @@ export default function BookEditorPage({
   const handleTabChange = (index: number | null) => {
     if (index === null) return;
     const modes: EditorMode[] = ["pages", "cover", "spine", "preview"];
-    // Account for separator at index 3
     const modeIndex = index > 2 ? index - 1 : index;
     if (modes[modeIndex]) {
       setActiveMode(modes[modeIndex]);
@@ -133,7 +167,7 @@ export default function BookEditorPage({
       pages: 0,
       cover: 1,
       spine: 2,
-      preview: 4, // After separator
+      preview: 4,
     };
     return modeIndices[activeMode];
   };
@@ -141,7 +175,6 @@ export default function BookEditorPage({
   // Handle cover save
   const handleSaveCover = async () => {
     if (!user) return;
-    // Get the selected hero image's storage ID
     const selectedImage = coverHeroIndex >= 0 ? completedCartoonImages[coverHeroIndex] : null;
     const heroImageId = selectedImage?.bakedImageId || selectedImage?.cartoonImageId || undefined;
 
@@ -157,28 +190,6 @@ export default function BookEditorPage({
         dedication: coverDedication || undefined,
       },
     });
-  };
-
-  // Handle delete image
-  const handleDeleteImage = async (imageId: Id<"images">) => {
-    if (!user) return;
-    if (confirm("Delete this image?")) {
-      await deleteImage({ clerkId: user.id, imageId });
-    }
-  };
-
-  // Handle custom cover image upload
-  const handleCustomCoverUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) return;
-    if (file.size > 10 * 1024 * 1024) return;
-    if (file.type === "image/heic" || file.type === "image/heif") return;
-
-    const previewUrl = URL.createObjectURL(file);
-    setCustomCoverImage(previewUrl);
-    setCoverHeroIndex(-1);
   };
 
   // Handle title editing
@@ -206,6 +217,70 @@ export default function BookEditorPage({
   const handleCancelEditingTitle = () => {
     setIsEditingTitle(false);
     setEditedTitle("");
+  };
+
+  // Handle add spread
+  const handleAddSpread = async () => {
+    if (!user) return;
+    await addSpread({
+      clerkId: user.id,
+      bookId,
+      spreadLayout: "duo", // Default
+    });
+    // Navigate to the new spread
+    setCurrentSpreadIndex(spreads.length);
+  };
+
+  // Handle delete spread
+  const handleDeleteSpread = async (spreadIndex: number) => {
+    if (!user) return;
+    const spread = spreads[spreadIndex];
+    if (!spread) return;
+
+    // Delete both pages in the spread
+    await removePage({ clerkId: user.id, pageId: spread.leftPage._id });
+    if (spread.rightPage) {
+      await removePage({ clerkId: user.id, pageId: spread.rightPage._id });
+    }
+
+    // Navigate to previous spread if needed
+    if (currentSpreadIndex >= spreads.length - 1 && currentSpreadIndex > 0) {
+      setCurrentSpreadIndex(currentSpreadIndex - 1);
+    }
+  };
+
+  // Handle layout change
+  const handleLayoutChange = async (layout: SpreadLayout) => {
+    if (!user || !currentSpread) return;
+    await updateSpreadLayout({
+      pageId: currentSpread.leftPage._id,
+      spreadLayout: layout,
+    });
+  };
+
+  // Handle open text editor
+  const handleOpenTextEditor = (imageId: Id<"images">, imageUrl: string) => {
+    setEditingImageId(imageId);
+    setEditingImageUrl(imageUrl);
+  };
+
+  // Handle close text editor
+  const handleCloseTextEditor = () => {
+    setEditingImageId(null);
+    setEditingImageUrl(null);
+  };
+
+  // Handle custom cover image upload
+  const handleCustomCoverUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) return;
+    if (file.size > 10 * 1024 * 1024) return;
+
+    const previewUrl = URL.createObjectURL(file);
+    setCustomCoverImage(previewUrl);
+    setCoverHeroIndex(-1);
   };
 
   // Get all completed cartoon images
@@ -270,14 +345,23 @@ export default function BookEditorPage({
             </button>
           )}
 
-          <Link
-            href={`/books/${bookId}/preview`}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-medium text-xs sm:text-sm transition-colors flex items-center gap-1 sm:gap-2 shadow-sm flex-shrink-0"
-          >
-            <span className="text-sm sm:text-base">📖</span>
-            <span className="hidden sm:inline">Full Preview</span>
-            <span className="sm:hidden">Preview</span>
-          </Link>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Write My Story Button */}
+            <WriteMyStoryButton
+              bookTitle={book.title}
+              allImages={allImages}
+              variant="header"
+            />
+
+            <Link
+              href={`/books/${bookId}/preview`}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-medium text-xs sm:text-sm transition-colors flex items-center gap-1 sm:gap-2 shadow-sm"
+            >
+              <span className="text-sm sm:text-base">📖</span>
+              <span className="hidden sm:inline">Full Preview</span>
+              <span className="sm:hidden">Preview</span>
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -292,7 +376,7 @@ export default function BookEditorPage({
       </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col items-center px-4 pb-28 md:pb-24 overflow-y-auto py-6">
+      <main className="flex-1 flex flex-col items-center px-4 pb-32 overflow-y-auto py-6">
         {/* 3D Book Preview - Show only on Cover, Spine, and Preview tabs */}
         {activeMode !== "pages" && (
           <div className="mb-6 md:mb-8 p-4 md:p-6 bg-gradient-to-br from-purple-100 via-pink-50 to-purple-50 rounded-2xl md:rounded-3xl shadow-sm">
@@ -309,15 +393,56 @@ export default function BookEditorPage({
         )}
 
         {/* Content Panel based on active mode */}
-        <div className="w-full max-w-4xl">
+        <div className="w-full max-w-7xl">
           {activeMode === "pages" && (
-            <PagesPanel
-              pages={pages as PageWithImages[]}
-              currentPageIndex={currentPageIndex}
-              onPageChange={setCurrentPageIndex}
-              currentPage={currentPage}
-              onDeleteImage={handleDeleteImage}
-            />
+            <>
+              {spreads.length === 0 ? (
+                <div className="bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 rounded-2xl p-8 shadow-sm border border-gray-100 text-center">
+                  <div className="max-w-md mx-auto">
+                    <div className="text-6xl mb-4">📖</div>
+                    <h3 className="text-2xl font-bold text-gray-900 mb-2">Start Your Story</h3>
+                    <p className="text-gray-600 mb-6">
+                      Click the <span className="font-semibold text-purple-600">+ Add Spread</span> button below to create your first spread!
+                    </p>
+                    <div className="bg-white rounded-xl p-4 text-left">
+                      <p className="text-sm text-gray-600 mb-3 font-medium">✨ How it works:</p>
+                      <ul className="space-y-2 text-sm text-gray-600">
+                        <li className="flex items-start gap-2">
+                          <span className="text-purple-600 font-bold">1.</span>
+                          <span>Each spread = 2 facing pages in your book</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-purple-600 font-bold">2.</span>
+                          <span>Choose a layout template for each spread</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-purple-600 font-bold">3.</span>
+                          <span>Upload photos and watch them transform!</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-purple-600 font-bold">4.</span>
+                          <span>Most books need 5-10 spreads (10-20 pages)</span>
+                        </li>
+                      </ul>
+                    </div>
+                    <button
+                      onClick={handleAddSpread}
+                      className="mt-6 px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl font-bold shadow-lg transition-all hover:scale-105"
+                    >
+                      + Add Your First Spread
+                    </button>
+                  </div>
+                </div>
+              ) : currentSpread ? (
+                <SpreadEditor
+                  leftPage={currentSpread.leftPage}
+                  rightPage={currentSpread.rightPage}
+                  currentLayout={currentSpread.layout}
+                  onLayoutChange={handleLayoutChange}
+                  onOpenTextEditor={handleOpenTextEditor}
+                />
+              ) : null}
+            </>
           )}
 
           {activeMode === "cover" && (
@@ -360,475 +485,88 @@ export default function BookEditorPage({
         </div>
       </main>
 
-      {/* Progress Footer */}
-      <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-4">
-          <div className="flex items-center justify-between gap-2 sm:gap-4">
-            {/* Progress */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 sm:gap-3 mb-1.5 sm:mb-2">
-                {generatingImages > 0 ? (
-                  <div className="flex items-center gap-1.5 sm:gap-2 text-purple-600">
-                    <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                    <span className="text-xs sm:text-sm font-medium truncate">Creating magic...</span>
-                  </div>
-                ) : isAllComplete && pages.length > 0 ? (
-                  <div className="flex items-center gap-1.5 sm:gap-2 text-emerald-600">
-                    <span className="text-sm sm:text-base">✨</span>
-                    <span className="text-xs sm:text-sm font-semibold">Your book is ready to preview!</span>
-                  </div>
-                ) : totalImages > 0 ? (
-                  <span className="text-gray-600 text-xs sm:text-sm font-medium">{pages.length} {pages.length === 1 ? 'page' : 'pages'} • {completedImages}/{totalImages} images ready</span>
-                ) : pages.length > 0 ? (
-                  <span className="text-gray-600 text-xs sm:text-sm font-medium">{pages.length} {pages.length === 1 ? 'page' : 'pages'} created</span>
-                ) : (
-                  <span className="text-gray-400 text-xs sm:text-sm truncate">Add pages to start</span>
-                )}
-              </div>
-              {totalImages > 0 && (
-                <div className="h-1.5 sm:h-2 bg-gray-100 rounded-full overflow-hidden max-w-[200px] sm:max-w-xs">
-                  <div
-                    className={`h-full transition-all duration-500 rounded-full ${
-                      isAllComplete ? "bg-emerald-500" : "bg-gradient-to-r from-purple-500 to-pink-500"
-                    }`}
-                    style={{ width: `${progressPercent}%` }}
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Order Button */}
-            <div className="relative group flex-shrink-0">
-              <Link href={(isAllComplete && pages.length >= 5) ? `/books/${bookId}/checkout` : "#"}>
-                <button
-                  className={`px-3 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center gap-1 sm:gap-2 ${
-                    isAllComplete && pages.length >= 5
-                      ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-500/25"
-                      : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                  }`}
-                  disabled={!isAllComplete || pages.length < 5}
-                >
-                  <span className="text-sm sm:text-base">🛒</span>
-                  <span className="hidden sm:inline">Order Book</span>
-                  <span className="sm:hidden">Order</span>
-                </button>
-              </Link>
-              {/* Tooltip for disabled state - hidden on mobile */}
-              {(!isAllComplete || pages.length < 5) && (
-                <div className="hidden sm:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
-                  {pages.length < 5 
-                    ? `Need at least 5 pages (you have ${pages.length})`
-                    : "Complete all images to order"}
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900" />
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </footer>
-    </div>
-  );
-}
-
-// ============ PAGES PANEL ============
-function PagesPanel({
-  pages,
-  currentPageIndex,
-  onPageChange,
-  currentPage,
-  onDeleteImage,
-}: {
-  pages: PageWithImages[];
-  currentPageIndex: number;
-  onPageChange: (index: number) => void;
-  currentPage?: PageWithImages;
-  onDeleteImage: (imageId: Id<"images">) => void;
-}) {
-  const { user } = useUser();
-  
-  // State for text overlay editor
-  const [editingImageId, setEditingImageId] = useState<Id<"images"> | null>(null);
-  const [editingImageUrl, setEditingImageUrl] = useState<string | null>(null);
-  
-  // Mutations
-  const addPage = useMutation(api.books.addPage);
-  const removePage = useMutation(api.books.removePage);
-  const reorderPages = useMutation(api.books.reorderPages);
-
-  // Open text overlay editor for an image
-  const handleOpenOverlayEditor = (image: ImageWithUrls) => {
-    if (image.cartoonUrl) {
-      setEditingImageId(image._id);
-      setEditingImageUrl(image.cartoonUrl);
-    }
-  };
-
-  // Close text overlay editor
-  const handleCloseOverlayEditor = () => {
-    setEditingImageId(null);
-    setEditingImageUrl(null);
-  };
-
-  // Add a new page
-  const handleAddPage = async () => {
-    if (!user || !currentPage) return;
-    await addPage({
-      clerkId: user.id,
-      bookId: currentPage.bookId,
-    });
-    // Switch to the new page
-    onPageChange(pages.length);
-  };
-
-  // Delete the current page
-  const handleDeletePage = async () => {
-    if (!user || !currentPage) return;
-    if (!confirm("Delete this page and all its photos? This cannot be undone.")) return;
-    
-    await removePage({
-      clerkId: user.id,
-      pageId: currentPage._id,
-    });
-    
-    // Switch to previous page if we deleted the last one
-    if (currentPageIndex >= pages.length - 1 && currentPageIndex > 0) {
-      onPageChange(currentPageIndex - 1);
-    }
-  };
-
-  // Move page up (earlier in the book)
-  const handleMovePageUp = async () => {
-    if (!user || !currentPage || currentPageIndex === 0) return;
-    
-    const newOrdering = [...pages];
-    [newOrdering[currentPageIndex - 1], newOrdering[currentPageIndex]] = 
-      [newOrdering[currentPageIndex], newOrdering[currentPageIndex - 1]];
-    
-    await reorderPages({
-      clerkId: user.id,
-      bookId: currentPage.bookId,
-      pageOrdering: newOrdering.map(p => p._id),
-    });
-    
-    onPageChange(currentPageIndex - 1);
-  };
-
-  // Move page down (later in the book)
-  const handleMovePageDown = async () => {
-    if (!user || !currentPage || currentPageIndex === pages.length - 1) return;
-    
-    const newOrdering = [...pages];
-    [newOrdering[currentPageIndex], newOrdering[currentPageIndex + 1]] = 
-      [newOrdering[currentPageIndex + 1], newOrdering[currentPageIndex]];
-    
-    await reorderPages({
-      clerkId: user.id,
-      bookId: currentPage.bookId,
-      pageOrdering: newOrdering.map(p => p._id),
-    });
-    
-    onPageChange(currentPageIndex + 1);
-  };
-
-  return (
-    <div className="space-y-4">
-      {/* Page Navigator Strip */}
-      <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100">
-        <div className="flex items-center justify-between mb-3 gap-2">
-          <button
-            onClick={() => onPageChange(Math.max(0, currentPageIndex - 1))}
-            disabled={currentPageIndex === 0 || pages.length === 0}
-            className="p-1.5 sm:p-2 rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0"
-          >
-            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-
-          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 scrollbar-hide flex-1">
-            {pages.map((page, i) => {
-              // Calculate page completion status
-              const pageImages = page.images || [];
-              const hasImages = pageImages.length > 0;
-              const completedCount = pageImages.filter(img => img.generationStatus === "completed").length;
-              const generatingCount = pageImages.filter(img => img.generationStatus === "generating").length;
-              const allComplete = hasImages && completedCount === pageImages.length;
-              const hasProcessing = generatingCount > 0;
-              
-              return (
-                <button
-                  key={page._id}
-                  onClick={() => onPageChange(i)}
-                  className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl text-xs font-semibold transition-all flex-shrink-0 relative ${
-                    i === currentPageIndex
-                      ? "bg-purple-600 text-white shadow-md"
-                      : hasImages
-                        ? "bg-purple-50 text-purple-700 hover:bg-purple-100"
-                        : "bg-gray-50 text-gray-400 hover:bg-gray-100"
-                  }`}
-                >
-                  {i + 1}
-                  {/* Status indicator dot */}
-                  <div className="absolute -bottom-0.5 sm:-bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
-                    {hasImages && (
-                      <div
-                        className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${
-                          allComplete
-                            ? "bg-emerald-500"
-                            : hasProcessing
-                              ? "bg-yellow-500 animate-pulse"
-                              : "bg-gray-400"
-                        }`}
-                      />
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-
-            {/* Add Page Button */}
-            <button
-              onClick={handleAddPage}
-              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl text-xs font-semibold transition-all flex-shrink-0 bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 shadow-sm hover:shadow-md flex items-center justify-center"
-              title="Add new page"
-            >
-              +
-            </button>
-          </div>
-
-          <button
-            onClick={() => onPageChange(Math.min(pages.length - 1, currentPageIndex + 1))}
-            disabled={currentPageIndex === pages.length - 1 || pages.length === 0}
-            className="p-1.5 sm:p-2 rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0"
-          >
-            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div className="text-center text-gray-500 text-xs sm:text-sm font-medium flex-1">
-            {pages.length === 0 ? (
-              <span>No pages yet • <span className="text-purple-600">Click + to start</span></span>
-            ) : (
-              <span>Page {currentPageIndex + 1} of {pages.length} • {pages.length < 10 && "💡 Most books have 10-20 pages"}</span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Page Controls - Show when a page is selected */}
-      {currentPage && (
-        <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleMovePageUp}
-                disabled={currentPageIndex === 0}
-                className="p-2 rounded-lg bg-gray-50 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all text-sm font-medium flex items-center gap-1"
-                title="Move page earlier"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-                <span className="hidden sm:inline">Earlier</span>
-              </button>
-              
-              <button
-                onClick={handleMovePageDown}
-                disabled={currentPageIndex === pages.length - 1}
-                className="p-2 rounded-lg bg-gray-50 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all text-sm font-medium flex items-center gap-1"
-                title="Move page later"
-              >
-                <span className="hidden sm:inline">Later</span>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-
-            <button
-              onClick={handleDeletePage}
-              className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all text-sm font-medium flex items-center gap-1"
-              title="Delete this page"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              <span className="hidden sm:inline">Delete Page</span>
-            </button>
-          </div>
+      {/* Spread Navigator - Fixed at bottom (Pages mode only) */}
+      {activeMode === "pages" && spreads.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-50">
+          <SpreadNavigator
+            spreads={spreads.map((s, i) => ({
+              spreadIndex: i,
+              leftPageId: s.leftPage._id,
+              rightPageId: s.rightPage?._id,
+              thumbnailUrl: s.leftPage.images?.[0]?.cartoonUrl || undefined,
+            }))}
+            currentSpreadIndex={currentSpreadIndex}
+            onSpreadChange={setCurrentSpreadIndex}
+            onAddSpread={handleAddSpread}
+            onDeleteSpread={handleDeleteSpread}
+          />
         </div>
       )}
 
+      {/* Progress Footer (non-Pages modes) */}
+      {activeMode !== "pages" && (
+        <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-4">
+            <div className="flex items-center justify-between gap-2 sm:gap-4">
+              {/* Progress */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 sm:gap-3 mb-1.5 sm:mb-2">
+                  {generatingImages > 0 ? (
+                    <div className="flex items-center gap-1.5 sm:gap-2 text-purple-600">
+                      <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                      <span className="text-xs sm:text-sm font-medium truncate">Creating magic...</span>
+                    </div>
+                  ) : isAllComplete && spreads.length >= 5 ? (
+                    <div className="flex items-center gap-1.5 sm:gap-2 text-emerald-600">
+                      <span className="text-sm sm:text-base">✨</span>
+                      <span className="text-xs sm:text-sm font-semibold">Your book is ready to order!</span>
+                    </div>
+                  ) : totalImages > 0 ? (
+                    <span className="text-gray-600 text-xs sm:text-sm font-medium">{completedImages}/{totalImages} images ready</span>
+                  ) : (
+                    <span className="text-gray-400 text-xs sm:text-sm truncate">Add spreads to start</span>
+                  )}
+                </div>
+                {totalImages > 0 && (
+                  <div className="h-1.5 sm:h-2 bg-gray-100 rounded-full overflow-hidden max-w-[200px] sm:max-w-xs">
+                    <div
+                      className={`h-full transition-all duration-500 rounded-full ${
+                        isAllComplete ? "bg-emerald-500" : "bg-gradient-to-r from-purple-500 to-pink-500"
+                      }`}
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                )}
+              </div>
 
-      {/* Page Editor */}
-      {pages.length === 0 ? (
-        <div className="bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 rounded-2xl p-8 shadow-sm border border-gray-100 text-center">
-          <div className="max-w-md mx-auto">
-            <div className="text-6xl mb-4">📖</div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">Start Your Story</h3>
-            <p className="text-gray-600 mb-6">
-              Click the <span className="font-semibold text-purple-600">+</span> button above to add your first page!
-            </p>
-            <div className="bg-white rounded-xl p-4 text-left">
-              <p className="text-sm text-gray-600 mb-3 font-medium">✨ How it works:</p>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-start gap-2">
-                  <span className="text-purple-600 font-bold">1.</span>
-                  <span>Add pages as you go — no need to fill them all at once</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-purple-600 font-bold">2.</span>
-                  <span>Upload photos to each page (up to 3 per page)</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-purple-600 font-bold">3.</span>
-                  <span>Reorder pages with the arrow buttons</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-purple-600 font-bold">4.</span>
-                  <span>Most storybooks have 10-20 pages</span>
-                </li>
-              </ul>
+              {/* Order Button */}
+              <div className="relative group flex-shrink-0">
+                <Link href={(isAllComplete && spreads.length >= 5) ? `/books/${bookId}/checkout` : "#"}>
+                  <button
+                    className={`px-3 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center gap-1 sm:gap-2 ${
+                      isAllComplete && spreads.length >= 5
+                        ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-500/25"
+                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    }`}
+                    disabled={!isAllComplete || spreads.length < 5}
+                  >
+                    <span className="text-sm sm:text-base">🛒</span>
+                    <span className="hidden sm:inline">Order Book</span>
+                    <span className="sm:hidden">Order</span>
+                  </button>
+                </Link>
+              </div>
             </div>
           </div>
-        </div>
-      ) : currentPage ? (
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-          <h3 className="text-gray-900 font-semibold mb-4 flex items-center gap-2">
-            <span>📸</span> Page {currentPageIndex + 1}
-          </h3>
-
-          {currentPage.images && currentPage.images.length > 0 ? (
-            <div className="space-y-4">
-              {currentPage.images.map((image) => (
-                <div key={image._id} className="relative group">
-                  {/* Status Badge */}
-                  <div className="absolute top-3 left-3 z-10">
-                    {image.generationStatus === "generating" && (
-                      <div className="bg-blue-500 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm">
-                        <div className="w-2 h-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span className="font-medium">Processing</span>
-                      </div>
-                    )}
-                    {image.generationStatus === "completed" && (
-                      <div className="bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-full shadow-sm font-medium">
-                        ✨ Ready
-                      </div>
-                    )}
-                    {image.generationStatus === "failed" && (
-                      <div className="bg-red-500 text-white text-xs px-3 py-1.5 rounded-full shadow-sm font-medium">
-                        ❌ Failed
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Delete Button */}
-                  <button
-                    onClick={() => onDeleteImage(image._id)}
-                    className="absolute top-3 right-3 z-10 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-
-                  {/* Image Preview - Before/After stacked on mobile, side by side on desktop */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    {/* Original */}
-                    <div className="space-y-2">
-                      <p className="text-gray-500 text-xs font-medium text-center">Original</p>
-                      <div className="aspect-square rounded-xl overflow-hidden bg-gray-100 shadow-sm">
-                        {image.originalUrl && (
-                          <img
-                            src={image.originalUrl}
-                            alt="Original"
-                            className="w-full h-full object-cover object-center"
-                          />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Transformed / Baked */}
-                    <div className="space-y-2 relative group/photo">
-                      <p className="text-gray-500 text-xs font-medium text-center">
-                        {image.bakedUrl ? "Final" : image.cartoonUrl ? "Cartoon" : "Processing..."}
-                        {image.bakingStatus === "baking" && " (Baking text...)"}
-                      </p>
-                      <div className="aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-purple-100 to-pink-100 relative shadow-sm">
-                        {/* Show baked image if available, otherwise cartoon */}
-                        {(image.bakedUrl || image.cartoonUrl) ? (
-                          <>
-                            <img
-                              src={image.bakedUrl || image.cartoonUrl || ""}
-                              alt={image.bakedUrl ? "Final with text" : "Transformed"}
-                              className="w-full h-full object-cover object-center"
-                            />
-                            
-                            {/* Add Text Button - Per Photo, Bottom Right Corner */}
-                            {image.generationStatus === "completed" && image.bakingStatus !== "baking" && (
-                              <button
-                                onClick={() => handleOpenOverlayEditor(image)}
-                                className="absolute bottom-2 right-2 bg-gray-900/90 hover:bg-gray-900 text-white px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 opacity-0 group-hover/photo:opacity-100 transition-all shadow-lg hover:scale-105"
-                                title="Add text to this photo"
-                              >
-                                <span>✏️</span>
-                                <span>Add Text</span>
-                              </button>
-                            )}
-
-                            {/* Baking overlay */}
-                            {image.bakingStatus === "baking" && (
-                              <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                <div className="text-center text-white">
-                                  <div className="w-8 h-8 border-3 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                                  <div className="text-sm font-medium">Baking text...</div>
-                                </div>
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-purple-500">
-                            <div className="text-center">
-                              <div className="text-3xl mb-2">🎨</div>
-                              <div className="text-sm font-medium">Creating magic...</div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {currentPage.images.length < 3 && (
-                <div className="pt-2">
-                  <ImageUpload
-                    pageId={currentPage._id}
-                    currentImageCount={currentPage.images.length}
-                    maxImages={3}
-                  />
-                </div>
-              )}
-            </div>
-          ) : (
-            <ImageUpload
-              pageId={currentPage._id}
-              currentImageCount={0}
-              maxImages={3}
-            />
-          )}
-        </div>
-      ) : null}
+        </footer>
+      )}
 
       {/* Text Overlay Editor Modal */}
       {editingImageId && editingImageUrl && (
         <TextOverlayEditor
           imageId={editingImageId}
           imageUrl={editingImageUrl}
-          onClose={handleCloseOverlayEditor}
+          onClose={handleCloseTextEditor}
         />
       )}
     </div>
@@ -878,7 +616,6 @@ function CoverPanel({
         <div>
           <label className="text-gray-700 text-sm font-medium mb-2 block">Cover Hero Image</label>
 
-          {/* Book images - primary option */}
           {allImages.length > 0 ? (
             <div className="mb-4">
               <p className="text-gray-500 text-xs mb-3">Select from your transformed images:</p>
@@ -903,12 +640,12 @@ function CoverPanel({
           ) : (
             <div className="mb-4 p-4 rounded-xl bg-gray-50 border border-gray-200 text-center">
               <p className="text-gray-500 text-sm">
-                Add photos to your book pages first to select a cover image.
+                Add photos to your spreads first to select a cover image.
               </p>
             </div>
           )}
 
-          {/* Custom upload - secondary option */}
+          {/* Custom upload */}
           <div className="pt-3 border-t border-gray-100">
             <p className="text-gray-500 text-xs mb-2">Or upload a custom image:</p>
             <label className="flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-dashed border-gray-200 hover:border-purple-400 hover:bg-purple-50 cursor-pointer transition-all">
@@ -1028,7 +765,6 @@ function SpinePanel({
         <div className="flex flex-col items-center">
           <p className="text-gray-600 text-sm mb-3 font-medium">Spine Preview (as seen on bookshelf)</p>
           <div className="relative">
-            {/* Mini spine visualization */}
             <div
               className={`w-12 h-48 rounded bg-gradient-to-b ${
                 THEMES.find(t => t.id === theme)?.gradient || "from-purple-600 to-purple-900"
@@ -1048,7 +784,6 @@ function SpinePanel({
                 {title}
               </div>
             </div>
-            {/* Shadow */}
             <div className="absolute -bottom-2 left-2 right-2 h-4 bg-black/20 blur-md rounded-full" />
           </div>
           <p className="text-gray-400 text-xs mt-4 text-center">
@@ -1123,7 +858,7 @@ function PreviewPanel({
             {completedImages} of {totalImages} images ready
           </div>
           <p className="text-gray-500">
-            Your images are being transformed into Disney-style illustrations.
+            Your images are being transformed into cartoon-style illustrations.
             You can preview while we work!
           </p>
           <Link href={`/books/${bookId}/preview`}>
@@ -1138,7 +873,7 @@ function PreviewPanel({
             No photos uploaded yet
           </div>
           <p className="text-gray-400">
-            Go to the Pages tab and upload some photos to get started!
+            Go to the Pages tab and add some spreads to get started!
           </p>
         </div>
       )}

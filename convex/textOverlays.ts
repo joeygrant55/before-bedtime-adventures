@@ -343,3 +343,73 @@ export const updateBakingStatus = mutation({
     await ctx.db.patch(args.imageId, patch);
   },
 });
+
+// Create or update story overlay for an image (used by AI story generator)
+export const createOrUpdateStoryOverlay = mutation({
+  args: {
+    imageId: v.id("images"),
+    content: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Check if this image already has overlays
+    const existingOverlays = await ctx.db
+      .query("textOverlays")
+      .withIndex("by_image", (q) => q.eq("imageId", args.imageId))
+      .collect();
+
+    const now = Date.now();
+    const MARGIN = 3;
+
+    // Find a story overlay or any overlay to update
+    const storyOverlay = existingOverlays.find((o) => o.overlayType === "story");
+    const anyOverlay = existingOverlays[0];
+
+    if (storyOverlay || anyOverlay) {
+      // Update existing overlay
+      const overlayToUpdate = storyOverlay || anyOverlay;
+      await ctx.db.patch(overlayToUpdate._id, {
+        content: args.content,
+        updatedAt: now,
+      });
+
+      // Mark image as needing re-bake
+      await ctx.db.patch(args.imageId, {
+        bakingStatus: undefined,
+        bakedImageId: undefined,
+        updatedAt: now,
+      });
+
+      return overlayToUpdate._id;
+    } else {
+      // Create new story overlay at the bottom
+      const maxZIndex = 0;
+
+      const overlayId = await ctx.db.insert("textOverlays", {
+        imageId: args.imageId,
+        content: args.content,
+        overlayType: "story",
+        position: { x: 50, y: 85, width: 100 - (MARGIN * 2) },
+        style: {
+          fontFamily: "classic",
+          fontSize: "small",
+          color: "#1F2937",
+          textAlign: "center",
+          hasBackground: true,
+          hasShadow: false,
+        },
+        zIndex: maxZIndex + 1,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // Mark image as needing re-bake
+      await ctx.db.patch(args.imageId, {
+        bakingStatus: undefined,
+        bakedImageId: undefined,
+        updatedAt: now,
+      });
+
+      return overlayId;
+    }
+  },
+});
