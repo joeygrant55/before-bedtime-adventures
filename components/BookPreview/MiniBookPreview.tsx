@@ -259,9 +259,8 @@ export function MiniBookPreview({
             <div
               className="text-amber-200 font-bold tracking-wider whitespace-nowrap"
               style={{
-                writingMode: "vertical-rl",
+                writingMode: "vertical-lr",
                 textOrientation: "mixed",
-                transform: "rotate(180deg)",
                 fontSize: size === "small" ? "8px" : size === "medium" ? "10px" : "12px",
                 maxHeight: height - (size === "small" ? 20 : 60),
                 overflow: "hidden",

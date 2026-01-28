@@ -55,6 +55,8 @@ export default function BookEditorPage({
   const [activeMode, setActiveMode] = useState<EditorMode>("pages");
   const [bookView, setBookView] = useState<BookView>("front");
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState("");
 
   // Cover design state
   const [coverTitle, setCoverTitle] = useState("");
@@ -69,6 +71,7 @@ export default function BookEditorPage({
   const book = useQuery(api.books.getBook, { bookId });
   const pages = useQuery(api.pages.getBookPages, { bookId });
   const updateCoverDesign = useMutation(api.books.updateCoverDesign);
+  const updateBookTitle = useMutation(api.books.updateBookTitle);
   const deleteImage = useMutation(api.images.deleteImage);
 
   // Initialize cover design from book
@@ -178,6 +181,33 @@ export default function BookEditorPage({
     setCoverHeroIndex(-1);
   };
 
+  // Handle title editing
+  const handleStartEditingTitle = () => {
+    setEditedTitle(book.title);
+    setIsEditingTitle(true);
+  };
+
+  const handleSaveTitle = async () => {
+    if (!user || !editedTitle.trim()) {
+      setIsEditingTitle(false);
+      return;
+    }
+    
+    if (editedTitle.trim() !== book.title) {
+      await updateBookTitle({
+        clerkId: user.id,
+        bookId,
+        title: editedTitle.trim(),
+      });
+    }
+    setIsEditingTitle(false);
+  };
+
+  const handleCancelEditingTitle = () => {
+    setIsEditingTitle(false);
+    setEditedTitle("");
+  };
+
   // Get all completed cartoon images
   const completedCartoonImages = allImages.filter((img: ImageWithUrls) =>
     img.generationStatus === "completed" && img.cartoonUrl
@@ -215,9 +245,30 @@ export default function BookEditorPage({
             <span className="hidden sm:inline font-medium text-sm">Dashboard</span>
           </Link>
 
-          <h1 className="text-sm sm:text-base md:text-lg font-bold text-gray-900 truncate max-w-[120px] sm:max-w-[200px] md:max-w-none flex-1 text-center">
-            {book.title}
-          </h1>
+          {isEditingTitle ? (
+            <input
+              type="text"
+              value={editedTitle}
+              onChange={(e) => setEditedTitle(e.target.value)}
+              onBlur={handleSaveTitle}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSaveTitle();
+                if (e.key === "Escape") handleCancelEditingTitle();
+              }}
+              autoFocus
+              className="text-sm sm:text-base md:text-lg font-bold text-gray-900 flex-1 text-center bg-purple-50 border-2 border-purple-400 rounded px-2 py-1 outline-none max-w-[120px] sm:max-w-[200px] md:max-w-md"
+            />
+          ) : (
+            <button
+              onClick={handleStartEditingTitle}
+              className="group text-sm sm:text-base md:text-lg font-bold text-gray-900 truncate max-w-[120px] sm:max-w-[200px] md:max-w-none flex-1 text-center hover:text-purple-600 transition-colors flex items-center justify-center gap-2"
+            >
+              <span>{book.title}</span>
+              <svg className="w-3 h-3 sm:w-4 sm:h-4 opacity-0 group-hover:opacity-50 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+            </button>
+          )}
 
           <Link
             href={`/books/${bookId}/preview`}
@@ -242,18 +293,20 @@ export default function BookEditorPage({
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col items-center px-4 pb-28 md:pb-24 overflow-y-auto py-6">
-        {/* 3D Book Preview - Always Visible */}
-        <div className="mb-6 md:mb-8 p-4 md:p-6 bg-gradient-to-br from-purple-100 via-pink-50 to-purple-50 rounded-2xl md:rounded-3xl shadow-sm">
-          <MiniBookPreview
-            book={previewBook as Doc<"books">}
-            pages={pages as PageWithImages[]}
-            currentView={bookView}
-            onViewChange={setBookView}
-            onFullPreview={() => router.push(`/books/${bookId}/preview`)}
-            size="medium"
-            coverHeroImage={selectedCoverHeroImage}
-          />
-        </div>
+        {/* 3D Book Preview - Show only on Cover, Spine, and Preview tabs */}
+        {activeMode !== "pages" && (
+          <div className="mb-6 md:mb-8 p-4 md:p-6 bg-gradient-to-br from-purple-100 via-pink-50 to-purple-50 rounded-2xl md:rounded-3xl shadow-sm">
+            <MiniBookPreview
+              book={previewBook as Doc<"books">}
+              pages={pages as PageWithImages[]}
+              currentView={bookView}
+              onViewChange={setBookView}
+              onFullPreview={() => router.push(`/books/${bookId}/preview`)}
+              size="medium"
+              coverHeroImage={selectedCoverHeroImage}
+            />
+          </div>
+        )}
 
         {/* Content Panel based on active mode */}
         <div className="w-full max-w-4xl">
@@ -536,7 +589,7 @@ function PagesPanel({
                     </div>
 
                     {/* Transformed / Baked */}
-                    <div className="space-y-2">
+                    <div className="space-y-2 relative group/photo">
                       <p className="text-gray-500 text-xs font-medium text-center">
                         {image.bakedUrl ? "Final" : image.cartoonUrl ? "Cartoon" : "Processing..."}
                         {image.bakingStatus === "baking" && " (Baking text...)"}
@@ -550,6 +603,19 @@ function PagesPanel({
                               alt={image.bakedUrl ? "Final with text" : "Transformed"}
                               className="w-full h-full object-cover object-center"
                             />
+                            
+                            {/* Add Text Button - Per Photo, Bottom Right Corner */}
+                            {image.generationStatus === "completed" && image.bakingStatus !== "baking" && (
+                              <button
+                                onClick={() => handleOpenOverlayEditor(image)}
+                                className="absolute bottom-2 right-2 bg-gray-900/90 hover:bg-gray-900 text-white px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 opacity-0 group-hover/photo:opacity-100 transition-all shadow-lg hover:scale-105"
+                                title="Add text to this photo"
+                              >
+                                <span>✏️</span>
+                                <span>Add Text</span>
+                              </button>
+                            )}
+
                             {/* Baking overlay */}
                             {image.bakingStatus === "baking" && (
                               <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
