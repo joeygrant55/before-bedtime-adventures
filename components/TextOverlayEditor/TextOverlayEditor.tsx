@@ -126,6 +126,14 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
     [selectedOverlayId, updateOverlay]
   );
 
+  // Handle position change from drag/resize
+  const handlePositionChange = useCallback(
+    async (overlayId: Id<"textOverlays">, position: TextOverlayPosition) => {
+      await updateOverlay({ overlayId, position });
+    },
+    [updateOverlay]
+  );
+
   // Handle style change
   const handleStyleChange = useCallback(
     async (overlayId: Id<"textOverlays">, styleUpdates: Partial<TextOverlayStyle>) => {
@@ -230,34 +238,39 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
                   <label className="block text-sm font-semibold text-gray-900 mb-3">
                     Position
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      onClick={() => handlePositionPresetChange("top")}
-                      className="flex flex-col items-center gap-2 px-3 py-3 bg-white border border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all"
-                    >
-                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-start justify-center pt-2">
-                        <div className="w-6 h-1 bg-purple-500 rounded-full" />
-                      </div>
-                      <span className="text-xs font-medium text-gray-700">Top</span>
-                    </button>
-                    <button
-                      onClick={() => handlePositionPresetChange("center")}
-                      className="flex flex-col items-center gap-2 px-3 py-3 bg-white border border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all"
-                    >
-                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                        <div className="w-6 h-1 bg-purple-500 rounded-full" />
-                      </div>
-                      <span className="text-xs font-medium text-gray-700">Center</span>
-                    </button>
-                    <button
-                      onClick={() => handlePositionPresetChange("bottom")}
-                      className="flex flex-col items-center gap-2 px-3 py-3 bg-white border border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all"
-                    >
-                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-end justify-center pb-2">
-                        <div className="w-6 h-1 bg-purple-500 rounded-full" />
-                      </div>
-                      <span className="text-xs font-medium text-gray-700">Bottom</span>
-                    </button>
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => handlePositionPresetChange("top")}
+                        className="flex flex-col items-center gap-2 px-3 py-3 bg-white border border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all"
+                      >
+                        <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-start justify-center pt-2">
+                          <div className="w-6 h-1 bg-purple-500 rounded-full" />
+                        </div>
+                        <span className="text-xs font-medium text-gray-700">Top</span>
+                      </button>
+                      <button
+                        onClick={() => handlePositionPresetChange("center")}
+                        className="flex flex-col items-center gap-2 px-3 py-3 bg-white border border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all"
+                      >
+                        <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                          <div className="w-6 h-1 bg-purple-500 rounded-full" />
+                        </div>
+                        <span className="text-xs font-medium text-gray-700">Center</span>
+                      </button>
+                      <button
+                        onClick={() => handlePositionPresetChange("bottom")}
+                        className="flex flex-col items-center gap-2 px-3 py-3 bg-white border border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all"
+                      >
+                        <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-end justify-center pb-2">
+                          <div className="w-6 h-1 bg-purple-500 rounded-full" />
+                        </div>
+                        <span className="text-xs font-medium text-gray-700">Bottom</span>
+                      </button>
+                    </div>
+                    <div className="text-xs text-gray-500 text-center">
+                      Or drag text on canvas to position freely
+                    </div>
                   </div>
                 </div>
               )}
@@ -358,15 +371,19 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
                 <ul className="text-xs text-gray-500 space-y-1.5">
                   <li className="flex items-start gap-2">
                     <span className="text-gray-400">•</span>
-                    <span>Type in the text field above</span>
+                    <span>Edit text in the field above</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-gray-400">•</span>
-                    <span>Choose position: Top, Center, or Bottom</span>
+                    <span>Drag text boxes on canvas to reposition</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-gray-400">•</span>
-                    <span>Keep text inside the safe zone</span>
+                    <span>Use handles on edges to resize width</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-gray-400">•</span>
+                    <span>Keep text inside the yellow safe zone</span>
                   </li>
                 </ul>
               </div>
@@ -408,7 +425,7 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
                 </div>
               </div>
 
-              {/* Text Overlays - Display Only */}
+              {/* Text Overlays - Draggable */}
               {overlays?.map((overlay) => (
                 <DraggableTextBox
                   key={overlay._id}
@@ -418,6 +435,8 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
                   style={overlay.style}
                   isSelected={selectedOverlayId === overlay._id}
                   onSelect={() => handleSelectOverlay(overlay._id)}
+                  onPositionChange={(position) => handlePositionChange(overlay._id, position)}
+                  containerRef={containerRef}
                 />
               ))}
 

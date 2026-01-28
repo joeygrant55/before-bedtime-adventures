@@ -1,6 +1,7 @@
 "use client";
 
-import { FONTS, FONT_SIZES } from "@/lib/print-specs";
+import { useState, useRef, useCallback } from "react";
+import { FONTS, FONT_SIZES, MARGIN_PERCENTAGES } from "@/lib/print-specs";
 
 export type TextOverlayStyle = {
   fontFamily: keyof typeof FONTS;
@@ -24,12 +25,13 @@ type DraggableTextBoxProps = {
   style: TextOverlayStyle;
   isSelected: boolean;
   onSelect: () => void;
+  onPositionChange: (position: TextOverlayPosition) => void;
+  containerRef: React.RefObject<HTMLElement | null>;
 };
 
 /**
- * Simplified display-only text overlay component.
- * No drag, no inline editing, no resize handles.
- * Just renders the text with the given style and position.
+ * Draggable and resizable text overlay component.
+ * Text editing happens in sidebar - this is only for visual positioning.
  */
 export function DraggableTextBox({
   id,
@@ -38,7 +40,15 @@ export function DraggableTextBox({
   style,
   isSelected,
   onSelect,
+  onPositionChange,
+  containerRef,
 }: DraggableTextBoxProps) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
+  const dragStartRef = useRef<{ x: number; y: number; startPos: TextOverlayPosition } | null>(null);
+  const resizeStartRef = useRef<{ x: number; startWidth: number } | null>(null);
+
   // Get font styles
   const fontConfig = FONTS[style.fontFamily];
   const sizeConfig = FONT_SIZES[style.fontSize];
@@ -63,13 +73,146 @@ export function DraggableTextBox({
       }
     : {};
 
+  // Constrain position to safe margins
+  const constrainPosition = useCallback((pos: TextOverlayPosition): TextOverlayPosition => {
+    const MARGIN = MARGIN_PERCENTAGES.safetyMargin;
+    const halfWidth = pos.width / 2;
+    
+    return {
+      x: Math.max(MARGIN + halfWidth, Math.min(100 - MARGIN - halfWidth, pos.x)),
+      y: Math.max(MARGIN, Math.min(100 - MARGIN, pos.y)),
+      width: Math.max(10, Math.min(100 - MARGIN * 2, pos.width)),
+    };
+  }, []);
+
+  // Handle drag start
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (isResizing) return;
+    e.stopPropagation();
+    
+    const container = containerRef.current;
+    if (!container) return;
+
+    onSelect();
+
+    const rect = container.getBoundingClientRect();
+    dragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      startPos: { ...position },
+    };
+
+    setIsDragging(true);
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }, [containerRef, position, onSelect, isResizing]);
+
+  // Handle drag move
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!isDragging || !dragStartRef.current) return;
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const deltaX = e.clientX - dragStartRef.current.x;
+    const deltaY = e.clientY - dragStartRef.current.y;
+
+    const deltaXPercent = (deltaX / rect.width) * 100;
+    const deltaYPercent = (deltaY / rect.height) * 100;
+
+    const newPosition = constrainPosition({
+      x: dragStartRef.current.startPos.x + deltaXPercent,
+      y: dragStartRef.current.startPos.y + deltaYPercent,
+      width: position.width,
+    });
+
+    onPositionChange(newPosition);
+  }, [isDragging, containerRef, position.width, constrainPosition, onPositionChange]);
+
+  // Handle drag end
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    if (isDragging) {
+      setIsDragging(false);
+      dragStartRef.current = null;
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    }
+  }, [isDragging]);
+
+  // Handle resize start
+  const handleResizeStart = useCallback((e: React.PointerEvent, side: 'left' | 'right') => {
+    e.stopPropagation();
+    
+    const container = containerRef.current;
+    if (!container) return;
+
+    resizeStartRef.current = {
+      x: e.clientX,
+      startWidth: position.width,
+    };
+
+    setIsResizing(true);
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }, [containerRef, position.width]);
+
+  // Handle resize move
+  const handleResizeMove = useCallback((e: React.PointerEvent, side: 'left' | 'right') => {
+    if (!isResizing || !resizeStartRef.current) return;
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const deltaX = e.clientX - resizeStartRef.current.x;
+    const deltaXPercent = (deltaX / rect.width) * 100;
+
+    let newWidth = resizeStartRef.current.startWidth;
+    if (side === 'right') {
+      newWidth = resizeStartRef.current.startWidth + deltaXPercent;
+    } else {
+      newWidth = resizeStartRef.current.startWidth - deltaXPercent;
+    }
+
+    const newPosition = constrainPosition({
+      x: position.x,
+      y: position.y,
+      width: newWidth,
+    });
+
+    onPositionChange(newPosition);
+  }, [isResizing, containerRef, position.x, position.y, constrainPosition, onPositionChange]);
+
+  // Handle resize end
+  const handleResizeEnd = useCallback((e: React.PointerEvent) => {
+    if (isResizing) {
+      setIsResizing(false);
+      resizeStartRef.current = null;
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    }
+  }, [isResizing]);
+
+  // Determine cursor style
+  const getCursor = () => {
+    if (isDragging) return "grabbing";
+    if (isResizing) return "ew-resize";
+    if (isHovering) return "grab";
+    return "pointer";
+  };
+
+  // Determine border style
+  const getBorderStyle = () => {
+    if (isDragging) return "2px solid rgba(139, 92, 246, 0.8)";
+    if (isHovering || isSelected) return "2px dashed rgba(139, 92, 246, 0.5)";
+    return "2px dashed transparent";
+  };
+
   return (
     <div
-      onClick={(e) => {
-        e.stopPropagation();
-        onSelect();
-      }}
-      className={`absolute select-none cursor-pointer transition-all ${
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+      className={`absolute select-none transition-all ${
         isSelected ? "ring-2 ring-purple-500 ring-offset-2" : ""
       }`}
       style={{
@@ -77,13 +220,43 @@ export function DraggableTextBox({
         top: `${position.y}%`,
         width: `${position.width}%`,
         transform: "translate(-50%, 0)",
+        cursor: getCursor(),
+        opacity: isDragging ? 0.8 : 1,
         ...backgroundStyles,
+        border: getBorderStyle(),
       }}
     >
       {/* Text content - display only */}
-      <div style={textStyles} className="whitespace-pre-wrap break-words">
+      <div style={textStyles} className="whitespace-pre-wrap break-words pointer-events-none">
         {content || "Empty text"}
       </div>
+
+      {/* Resize handles - only show when selected or hovering */}
+      {(isSelected || isHovering) && (
+        <>
+          {/* Left resize handle */}
+          <div
+            onPointerDown={(e) => handleResizeStart(e, 'left')}
+            onPointerMove={(e) => handleResizeMove(e, 'left')}
+            onPointerUp={handleResizeEnd}
+            className="absolute top-0 left-0 w-3 h-full cursor-ew-resize bg-purple-500 opacity-0 hover:opacity-100 transition-opacity"
+            style={{ transform: "translateX(-50%)" }}
+          >
+            <div className="absolute inset-y-0 left-1/2 w-1 bg-white rounded-full" />
+          </div>
+
+          {/* Right resize handle */}
+          <div
+            onPointerDown={(e) => handleResizeStart(e, 'right')}
+            onPointerMove={(e) => handleResizeMove(e, 'right')}
+            onPointerUp={handleResizeEnd}
+            className="absolute top-0 right-0 w-3 h-full cursor-ew-resize bg-purple-500 opacity-0 hover:opacity-100 transition-opacity"
+            style={{ transform: "translateX(50%)" }}
+          >
+            <div className="absolute inset-y-0 left-1/2 w-1 bg-white rounded-full" />
+          </div>
+        </>
+      )}
     </div>
   );
 }
