@@ -131,7 +131,7 @@ export const removePage = mutation({
       .collect();
 
     // Sort by current sortOrder and reassign
-    remainingPages.sort((a, b) => a.sortOrder - b.sortOrder);
+    remainingPages.sort((a, b) => (a.sortOrder ?? a.pageNumber) - (b.sortOrder ?? b.pageNumber));
     for (let i = 0; i < remainingPages.length; i++) {
       await ctx.db.patch(remainingPages[i]._id, {
         sortOrder: i,
