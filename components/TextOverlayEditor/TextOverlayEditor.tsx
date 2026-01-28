@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { useQuery, useMutation, useAction } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { MARGIN_PERCENTAGES } from "@/lib/print-specs";
+import { MARGIN_PERCENTAGES, PIXELS_AT_300_DPI } from "@/lib/print-specs";
 import { DraggableTextBox, TextOverlayStyle, TextOverlayPosition } from "./DraggableTextBox";
 import { TextStyleToolbar } from "./TextStyleToolbar";
 import { POSITION_PRESETS } from "./QuickPositionPresets";
 import { TextOverlayModal } from "./TextOverlayModal";
+import { bakeTextOnCanvas } from "@/lib/bakeTextClient";
 
 type TextOverlayEditorProps = {
   imageId: Id<"images">;
@@ -28,12 +29,13 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
   // Fetch existing overlays
   const overlays = useQuery(api.textOverlays.getImageOverlays, { imageId });
 
-  // Mutations & Actions
+  // Mutations
   const createOverlay = useMutation(api.textOverlays.create);
   const updateOverlay = useMutation(api.textOverlays.update);
   const deleteOverlay = useMutation(api.textOverlays.remove);
   const createPreset = useMutation(api.textOverlays.createPreset);
-  const bakeTextOverlay = useAction(api.bakeTextOverlay.bakeTextOverlay);
+  const generateUploadUrl = useMutation(api.images.generateUploadUrl);
+  const updateBakingStatus = useMutation(api.textOverlays.updateBakingStatus);
 
   // Get selected overlay data
   const selectedOverlay = overlays?.find((o) => o._id === selectedOverlayId);
@@ -161,20 +163,82 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
     [deleteOverlay, selectedOverlayId]
   );
 
-  // Handle done - bake text and close
+  // Handle done - bake text client-side and close
   const handleDone = useCallback(async () => {
     if (overlays && overlays.length > 0) {
       setIsBaking(true);
       try {
-        await bakeTextOverlay({ imageId });
+        // Filter out placeholder text (same logic as old bakeTextOverlay)
+        const defaultPlaceholders = [
+          "Chapter Title",
+          "Scene Title", 
+          "And so the adventure began...",
+          "Click to edit",
+          "Double-click to edit"
+        ];
+        
+        const filteredOverlays = overlays.filter(overlay => 
+          !defaultPlaceholders.includes(overlay.content.trim())
+        );
+
+        // If no real content, just mark as completed without baking
+        if (filteredOverlays.length === 0) {
+          await updateBakingStatus({
+            imageId,
+            status: "completed",
+          });
+          onClose();
+          return;
+        }
+
+        // Update status to baking
+        await updateBakingStatus({
+          imageId,
+          status: "baking",
+        });
+
+        // Bake text on canvas at print resolution (2550x2550 for Lulu)
+        const bakedBlob = await bakeTextOnCanvas(
+          imageUrl,
+          filteredOverlays,
+          PIXELS_AT_300_DPI.trimWidth,
+          PIXELS_AT_300_DPI.trimHeight
+        );
+
+        // Upload the baked image to Convex storage
+        const uploadUrl = await generateUploadUrl();
+        const uploadResponse = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'image/png' },
+          body: bakedBlob,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error(`Upload failed: ${uploadResponse.status}`);
+        }
+
+        const { storageId } = await uploadResponse.json();
+
+        // Update the image record with the baked image
+        await updateBakingStatus({
+          imageId,
+          status: "completed",
+          bakedImageId: storageId,
+        });
+
+        console.log("✅ Text baked successfully (client-side)!");
       } catch (error) {
         console.error("Error baking text overlay:", error);
+        await updateBakingStatus({
+          imageId,
+          status: "failed",
+        });
       } finally {
         setIsBaking(false);
       }
     }
     onClose();
-  }, [bakeTextOverlay, imageId, overlays, onClose]);
+  }, [overlays, imageUrl, imageId, generateUploadUrl, updateBakingStatus, onClose]);
 
   const MARGIN = MARGIN_PERCENTAGES.safetyMargin;
 

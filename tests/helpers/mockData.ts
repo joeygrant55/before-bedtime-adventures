@@ -52,6 +52,7 @@ export const createMockPage = (
   _creationTime: Date.now(),
   bookId,
   pageNumber,
+  sortOrder: pageNumber,
   title: `Stop ${pageNumber}`,
   storyText: `This is the story for stop ${pageNumber}...`,
   spreadType: "single_image",

@@ -1,3 +1,18 @@
+/**
+ * @deprecated This AI-based text baking is replaced by client-side canvas rendering.
+ * 
+ * See: lib/bakeTextClient.ts
+ * 
+ * The new approach:
+ * - Renders text overlays directly in the browser using HTML Canvas
+ * - Instant (milliseconds vs 10-30 seconds)
+ * - Pixel-perfect (matches CSS preview exactly)
+ * - No AI costs or API failures
+ * - No image distortion
+ * 
+ * This file is kept for backward compatibility but should not be used for new implementations.
+ */
+
 import { v } from "convex/values";
 import { action } from "./_generated/server";
 import { api } from "./_generated/api";

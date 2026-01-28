@@ -12,51 +12,14 @@ import { motion } from "framer-motion";
 
 interface FormErrors {
   title?: string;
-  pageCount?: string;
 }
 
-type PageOption = {
-  value: number;
-  label: string;
-  description: string;
-  recommended?: boolean;
-};
-
-const pageOptions: PageOption[] = [
-  { value: 10, label: "Short Story", description: "Perfect for a quick adventure" },
-  { value: 15, label: "Classic", description: "The most popular choice", recommended: true },
-  { value: 20, label: "Extended", description: "For your biggest adventures" },
-];
-
 const steps = [
-  { icon: "📸", title: "Upload Photos", description: "Add your favorite moments" },
-  { icon: "✨", title: "AI Magic", description: "We transform them into Disney-style art" },
+  { icon: "📸", title: "Add Pages", description: "Create pages as you go" },
+  { icon: "✨", title: "AI Magic", description: "We transform photos into Disney-style art" },
   { icon: "✏️", title: "Customize", description: "Add text, pick your cover design" },
   { icon: "📦", title: "Delivered", description: "Premium hardcover shipped to your door" },
 ];
-
-// Mini book icon component that scales with page count
-function BookIcon({ pages }: { pages: number }) {
-  const thickness = pages === 10 ? 2 : pages === 15 ? 3 : 4;
-  return (
-    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" className="mx-auto mb-3">
-      <rect x="8" y="8" width="24" height="24" rx="2" fill="currentColor" opacity="0.1" />
-      {Array.from({ length: thickness }).map((_, i) => (
-        <rect
-          key={i}
-          x={8 + i * 1.5}
-          y={8 + i * 0.5}
-          width="24"
-          height="24"
-          rx="2"
-          stroke="currentColor"
-          strokeWidth="2"
-          fill="white"
-        />
-      ))}
-    </svg>
-  );
-}
 
 function NewBookContent() {
   const router = useRouter();
@@ -64,7 +27,6 @@ function NewBookContent() {
   const { success, error: showError } = useToast();
   
   const [title, setTitle] = useState("");
-  const [pageCount, setPageCount] = useState(15);
   const [isCreating, setIsCreating] = useState(false);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -78,11 +40,6 @@ function NewBookContent() {
         if (String(value).trim().length < 2) return "Title must be at least 2 characters";
         if (String(value).trim().length > 100) return "Title must be less than 100 characters";
         break;
-      case "pageCount":
-        const num = Number(value);
-        if (num < 10) return "Minimum 10 pages required";
-        if (num > 20) return "Maximum 20 pages allowed";
-        break;
     }
     return undefined;
   }, []);
@@ -91,15 +48,13 @@ function NewBookContent() {
     const errors: FormErrors = {};
     const titleError = validateField("title", title);
     if (titleError) errors.title = titleError;
-    const pageCountError = validateField("pageCount", pageCount);
-    if (pageCountError) errors.pageCount = pageCountError;
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
-  }, [title, pageCount, validateField]);
+  }, [title, validateField]);
 
   const handleBlur = (field: string) => {
     setTouched(prev => ({ ...prev, [field]: true }));
-    const value = field === "title" ? title : pageCount;
+    const value = field === "title" ? title : "";
     const error = validateField(field, value);
     setFormErrors(prev => ({ ...prev, [field]: error }));
   };
@@ -114,7 +69,7 @@ function NewBookContent() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setTouched({ title: true, pageCount: true });
+    setTouched({ title: true });
     
     if (!validateForm()) {
       showError("Please fix the errors in the form");
@@ -131,10 +86,9 @@ function NewBookContent() {
       const bookId = await createBook({
         clerkId: user.id,
         title: title.trim(),
-        pageCount,
       });
 
-      success("Book created! Let's add some photos.");
+      success("Book created! Start adding your pages and photos.");
       router.push(`/books/${bookId}/edit`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to create book";
@@ -255,52 +209,9 @@ function NewBookContent() {
                 }`}
               />
               <FieldError error={formErrors.title} id="title-error" />
-            </motion.div>
-
-            {/* Page Count Selection */}
-            <motion.div 
-              className="mb-12"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5, duration: 0.5 }}
-            >
-              <h2 className="block text-lg font-semibold text-gray-900 mb-6 text-center">
-                Choose your story length
-              </h2>
-              <div className="grid md:grid-cols-3 gap-4">
-                {pageOptions.map((option, index) => (
-                  <motion.button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setPageCount(option.value)}
-                    className={`relative p-6 rounded-2xl border-2 transition-all ${
-                      pageCount === option.value
-                        ? "border-purple-500 bg-purple-50 shadow-lg scale-105"
-                        : "border-gray-200 bg-white hover:border-purple-300 hover:shadow-md"
-                    }`}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 + index * 0.1, duration: 0.4 }}
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    {option.recommended && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                        <span className="inline-block px-3 py-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-semibold rounded-full shadow-md">
-                          Most Popular
-                        </span>
-                      </div>
-                    )}
-                    <div className={pageCount === option.value ? "text-purple-600" : "text-gray-400"}>
-                      <BookIcon pages={option.value} />
-                    </div>
-                    <h3 className="text-lg font-bold text-gray-900 mb-1">{option.label}</h3>
-                    <p className="text-sm text-gray-500 mb-2">{option.description}</p>
-                    <div className="text-2xl font-bold text-purple-600">{option.value}</div>
-                    <div className="text-xs text-gray-400">pages</div>
-                  </motion.button>
-                ))}
-              </div>
+              <p className="text-center text-sm text-gray-500 mt-2">
+                💡 Most storybooks have 10-20 pages
+              </p>
             </motion.div>
 
             {/* Journey Steps */}
@@ -308,7 +219,7 @@ function NewBookContent() {
               className="mb-12"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8, duration: 0.5 }}
+              transition={{ delay: 0.5, duration: 0.5 }}
             >
               <h2 className="text-lg font-semibold text-gray-900 mb-6 text-center">
                 Your magical journey
@@ -320,7 +231,7 @@ function NewBookContent() {
                     className="relative"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.9 + index * 0.1, duration: 0.4 }}
+                    transition={{ delay: 0.6 + index * 0.1, duration: 0.4 }}
                   >
                     <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                       <div className="text-4xl mb-3 text-center">{step.icon}</div>
@@ -339,7 +250,7 @@ function NewBookContent() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 1.2, duration: 0.5 }}
+              transition={{ delay: 0.9, duration: 0.5 }}
               className="text-center"
             >
               <motion.button
