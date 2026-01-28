@@ -165,10 +165,23 @@ export async function bakeTextOnCanvas(
   // Ensure fonts are loaded
   await ensureFontsLoaded();
 
-  // Create canvas at target resolution (high-res for print)
+  // Load the base image first to get its natural dimensions
+  const img = await loadImage(imageUrl);
+  
+  // Use the original image dimensions (scaled up if needed for print quality)
+  // This preserves the exact aspect ratio — no squishing
+  const naturalWidth = img.naturalWidth;
+  const naturalHeight = img.naturalHeight;
+  
+  // Scale up to at least 2550px on the longest side for print quality
+  const maxDim = Math.max(naturalWidth, naturalHeight);
+  const scale = maxDim < targetWidth ? targetWidth / maxDim : 1;
+  const canvasWidth = Math.round(naturalWidth * scale);
+  const canvasHeight = Math.round(naturalHeight * scale);
+  
   const canvas = document.createElement('canvas');
-  canvas.width = targetWidth;
-  canvas.height = targetHeight;
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
   const ctx = canvas.getContext('2d');
   
   if (!ctx) {
@@ -177,11 +190,10 @@ export async function bakeTextOnCanvas(
 
   // Calculate scale factor for font sizes
   // Base font sizes are designed for ~600px display
-  const scaleFactor = targetWidth / 600;
+  const scaleFactor = canvasWidth / 600;
 
-  // Load and draw the base image
-  const img = await loadImage(imageUrl);
-  ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+  // Draw image at its natural aspect ratio
+  ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight);
 
   // Sort overlays by zIndex (paint order)
   const sortedOverlays = [...overlays].sort((a, b) => a.zIndex - b.zIndex);
@@ -189,9 +201,9 @@ export async function bakeTextOnCanvas(
   // Draw each text overlay
   for (const overlay of sortedOverlays) {
     // Convert percentage positions to pixel coordinates
-    const x = (overlay.position.x / 100) * targetWidth;
-    const y = (overlay.position.y / 100) * targetHeight;
-    const width = (overlay.position.width / 100) * targetWidth;
+    const x = (overlay.position.x / 100) * canvasWidth;
+    const y = (overlay.position.y / 100) * canvasHeight;
+    const width = (overlay.position.width / 100) * canvasWidth;
 
     // Set up text styling
     const fontSize = getFontSize(overlay.style.fontSize, scaleFactor);
