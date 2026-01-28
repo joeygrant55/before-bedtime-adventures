@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 
 type TextOverlayModalProps = {
@@ -11,6 +11,7 @@ type TextOverlayModalProps = {
 
 export function TextOverlayModal({ isOpen, onClose, children }: TextOverlayModalProps) {
   const [mounted, setMounted] = useState(false);
+  const scrollPositionRef = useRef(0);
 
   useEffect(() => {
     setMounted(true);
@@ -18,19 +19,26 @@ export function TextOverlayModal({ isOpen, onClose, children }: TextOverlayModal
 
   useEffect(() => {
     if (isOpen) {
-      // Prevent body scroll
+      // Save current scroll position
+      scrollPositionRef.current = window.scrollY;
+      
+      // Prevent body scroll using overflow instead of position fixed
+      // This prevents layout shift/zoom issues
       document.body.style.overflow = "hidden";
-      document.body.style.position = "fixed";
-      document.body.style.inset = "0";
+      document.body.style.paddingRight = `${window.innerWidth - document.documentElement.clientWidth}px`;
     } else {
+      // Restore body scroll
       document.body.style.overflow = "";
-      document.body.style.position = "";
-      document.body.style.inset = "";
+      document.body.style.paddingRight = "";
+      
+      // Restore scroll position after a brief delay to allow DOM to settle
+      requestAnimationFrame(() => {
+        window.scrollTo(0, scrollPositionRef.current);
+      });
     }
     return () => {
       document.body.style.overflow = "";
-      document.body.style.position = "";
-      document.body.style.inset = "";
+      document.body.style.paddingRight = "";
     };
   }, [isOpen]);
 

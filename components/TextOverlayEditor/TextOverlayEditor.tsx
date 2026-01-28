@@ -202,8 +202,9 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
           >
             {isBaking ? (
               <>
+                <span className="text-base">✨</span>
+                <span>Baking your text...</span>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Saving...</span>
               </>
             ) : (
               <span>Save</span>

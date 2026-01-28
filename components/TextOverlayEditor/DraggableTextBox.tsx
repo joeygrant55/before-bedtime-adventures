@@ -44,10 +44,10 @@ export function DraggableTextBox({
   containerRef,
 }: DraggableTextBoxProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const [isResizing, setIsResizing] = useState(false);
+  const [isResizing, setIsResizing] = useState<'left' | 'right' | null>(null);
   const [isHovering, setIsHovering] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number; startPos: TextOverlayPosition } | null>(null);
-  const resizeStartRef = useRef<{ x: number; startWidth: number } | null>(null);
+  const resizeStartRef = useRef<{ x: number; startWidth: number; startX: number } | null>(null);
 
   // Get font styles
   const fontConfig = FONTS[style.fontFamily];
@@ -106,96 +106,96 @@ export function DraggableTextBox({
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
   }, [containerRef, position, onSelect, isResizing]);
 
-  // Handle drag move
+  // Handle drag move (also handles resize move)
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!isDragging || !dragStartRef.current) return;
-
     const container = containerRef.current;
     if (!container) return;
 
     const rect = container.getBoundingClientRect();
-    const deltaX = e.clientX - dragStartRef.current.x;
-    const deltaY = e.clientY - dragStartRef.current.y;
 
-    const deltaXPercent = (deltaX / rect.width) * 100;
-    const deltaYPercent = (deltaY / rect.height) * 100;
+    // Handle dragging
+    if (isDragging && dragStartRef.current) {
+      const deltaX = e.clientX - dragStartRef.current.x;
+      const deltaY = e.clientY - dragStartRef.current.y;
 
-    const newPosition = constrainPosition({
-      x: dragStartRef.current.startPos.x + deltaXPercent,
-      y: dragStartRef.current.startPos.y + deltaYPercent,
-      width: position.width,
-    });
+      const deltaXPercent = (deltaX / rect.width) * 100;
+      const deltaYPercent = (deltaY / rect.height) * 100;
 
-    onPositionChange(newPosition);
-  }, [isDragging, containerRef, position.width, constrainPosition, onPositionChange]);
+      const newPosition = constrainPosition({
+        x: dragStartRef.current.startPos.x + deltaXPercent,
+        y: dragStartRef.current.startPos.y + deltaYPercent,
+        width: position.width,
+      });
 
-  // Handle drag end
+      onPositionChange(newPosition);
+    }
+
+    // Handle resizing
+    if (isResizing && resizeStartRef.current) {
+      const deltaX = e.clientX - resizeStartRef.current.x;
+      const deltaXPercent = (deltaX / rect.width) * 100;
+
+      let newWidth = resizeStartRef.current.startWidth;
+      let newX = resizeStartRef.current.startX;
+
+      if (isResizing === 'right') {
+        // Resize from right: increase width
+        newWidth = resizeStartRef.current.startWidth + deltaXPercent;
+      } else {
+        // Resize from left: decrease width and adjust x position
+        newWidth = resizeStartRef.current.startWidth - deltaXPercent;
+        newX = resizeStartRef.current.startX + (deltaXPercent / 2); // Keep centered
+      }
+
+      const newPosition = constrainPosition({
+        x: newX,
+        y: position.y,
+        width: newWidth,
+      });
+
+      onPositionChange(newPosition);
+    }
+  }, [isDragging, isResizing, containerRef, position.width, position.y, constrainPosition, onPositionChange]);
+
+  // Handle drag/resize end
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     if (isDragging) {
       setIsDragging(false);
       dragStartRef.current = null;
       (e.target as HTMLElement).releasePointerCapture(e.pointerId);
     }
-  }, [isDragging]);
+    if (isResizing) {
+      setIsResizing(null);
+      resizeStartRef.current = null;
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    }
+  }, [isDragging, isResizing]);
 
   // Handle resize start
   const handleResizeStart = useCallback((e: React.PointerEvent, side: 'left' | 'right') => {
     e.stopPropagation();
+    e.preventDefault();
     
     const container = containerRef.current;
     if (!container) return;
 
+    onSelect(); // Select the text box when starting to resize
+
     resizeStartRef.current = {
       x: e.clientX,
       startWidth: position.width,
+      startX: position.x,
     };
 
-    setIsResizing(true);
+    setIsResizing(side);
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  }, [containerRef, position.width]);
-
-  // Handle resize move
-  const handleResizeMove = useCallback((e: React.PointerEvent, side: 'left' | 'right') => {
-    if (!isResizing || !resizeStartRef.current) return;
-
-    const container = containerRef.current;
-    if (!container) return;
-
-    const rect = container.getBoundingClientRect();
-    const deltaX = e.clientX - resizeStartRef.current.x;
-    const deltaXPercent = (deltaX / rect.width) * 100;
-
-    let newWidth = resizeStartRef.current.startWidth;
-    if (side === 'right') {
-      newWidth = resizeStartRef.current.startWidth + deltaXPercent;
-    } else {
-      newWidth = resizeStartRef.current.startWidth - deltaXPercent;
-    }
-
-    const newPosition = constrainPosition({
-      x: position.x,
-      y: position.y,
-      width: newWidth,
-    });
-
-    onPositionChange(newPosition);
-  }, [isResizing, containerRef, position.x, position.y, constrainPosition, onPositionChange]);
-
-  // Handle resize end
-  const handleResizeEnd = useCallback((e: React.PointerEvent) => {
-    if (isResizing) {
-      setIsResizing(false);
-      resizeStartRef.current = null;
-      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-    }
-  }, [isResizing]);
+  }, [containerRef, position.width, position.x, onSelect]);
 
   // Determine cursor style
   const getCursor = () => {
     if (isDragging) return "grabbing";
     if (isResizing) return "ew-resize";
-    if (isHovering) return "grab";
-    return "pointer";
+    return "default";
   };
 
   // Determine border style
@@ -237,10 +237,8 @@ export function DraggableTextBox({
           {/* Left resize handle */}
           <div
             onPointerDown={(e) => handleResizeStart(e, 'left')}
-            onPointerMove={(e) => handleResizeMove(e, 'left')}
-            onPointerUp={handleResizeEnd}
-            className="absolute top-0 left-0 w-3 h-full cursor-ew-resize bg-purple-500 opacity-0 hover:opacity-100 transition-opacity"
-            style={{ transform: "translateX(-50%)" }}
+            className="absolute top-0 left-0 w-4 h-full cursor-ew-resize bg-purple-500 opacity-0 hover:opacity-100 transition-opacity z-10"
+            style={{ transform: "translateX(-50%)", touchAction: "none" }}
           >
             <div className="absolute inset-y-0 left-1/2 w-1 bg-white rounded-full" />
           </div>
@@ -248,10 +246,8 @@ export function DraggableTextBox({
           {/* Right resize handle */}
           <div
             onPointerDown={(e) => handleResizeStart(e, 'right')}
-            onPointerMove={(e) => handleResizeMove(e, 'right')}
-            onPointerUp={handleResizeEnd}
-            className="absolute top-0 right-0 w-3 h-full cursor-ew-resize bg-purple-500 opacity-0 hover:opacity-100 transition-opacity"
-            style={{ transform: "translateX(50%)" }}
+            className="absolute top-0 right-0 w-4 h-full cursor-ew-resize bg-purple-500 opacity-0 hover:opacity-100 transition-opacity z-10"
+            style={{ transform: "translateX(50%)", touchAction: "none" }}
           >
             <div className="absolute inset-y-0 left-1/2 w-1 bg-white rounded-full" />
           </div>

@@ -640,26 +640,6 @@ function PagesPanel({
                 </div>
               ))}
 
-              {/* Add Text Button - ONE per page, not per image */}
-              {(() => {
-                // Find first completed image to use for text overlay
-                const completedImage = currentPage.images.find(
-                  img => img.generationStatus === "completed" && img.bakingStatus !== "baking"
-                );
-                
-                return completedImage ? (
-                  <button
-                    onClick={() => handleOpenOverlayEditor(completedImage)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-900 hover:bg-gray-800 text-white rounded-xl transition-colors font-medium text-sm shadow-sm"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    <span>{completedImage.bakedUrl ? "Edit Text Overlay" : "Add Text to This Page"}</span>
-                  </button>
-                ) : null;
-              })()}
-
               {currentPage.images.length < 3 && (
                 <div className="pt-2">
                   <ImageUpload
