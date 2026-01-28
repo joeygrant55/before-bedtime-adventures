@@ -65,6 +65,7 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const [address, setAddress] = useState<ShippingAddress>({
     name: "",
     street1: "",
@@ -168,7 +169,7 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
     handleInputChange("phoneNumber", formatted);
   };
 
-  const handleCheckout = async () => {
+  const handleReviewAddress = () => {
     // Mark all fields as touched
     setTouched({
       name: true,
@@ -184,6 +185,11 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
       return;
     }
 
+    // Show confirmation screen
+    setShowConfirmation(true);
+  };
+
+  const handleCheckout = async () => {
     setIsProcessing(true);
     setSubmitError(null);
 
@@ -404,19 +410,20 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
             </div>
           </motion.div>
 
-          {/* Right Column - Shipping Form */}
+          {/* Right Column - Shipping Form or Confirmation */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
           >
-            <form 
-              onSubmit={(e) => { e.preventDefault(); handleCheckout(); }}
-              className="bg-white shadow-sm rounded-2xl p-6 md:p-8 border border-gray-200"
-              noValidate
-            >
-              <h2 className="text-xl font-bold text-white mb-2">Shipping Address</h2>
-              <p className="text-gray-500/60 text-sm mb-6">US addresses only</p>
+            {!showConfirmation ? (
+              <form 
+                onSubmit={(e) => { e.preventDefault(); handleReviewAddress(); }}
+                className="bg-white shadow-sm rounded-2xl p-6 md:p-8 border border-gray-200"
+                noValidate
+              >
+                <h2 className="text-xl font-bold text-white mb-2">Shipping Address</h2>
+                <p className="text-gray-500/60 text-sm mb-6">US addresses only</p>
 
               <div className="space-y-4">
                 {/* Full Name */}
@@ -617,7 +624,88 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
                   type="submit"
                   disabled={isProcessing}
                   aria-busy={isProcessing}
-                  className="w-full mt-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:from-gray-500 disabled:to-gray-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-amber-500/25 transition-all hover:shadow-xl hover:shadow-amber-500/40 hover:scale-[1.02] disabled:scale-100 disabled:shadow-none disabled:cursor-not-allowed flex items-center justify-center gap-3 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+                  className="w-full mt-4 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-bold py-4 rounded-xl shadow-lg shadow-purple-500/25 transition-all hover:shadow-xl hover:shadow-purple-500/40 hover:scale-[1.02] flex items-center justify-center gap-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                  <span>Review Order</span>
+                </button>
+
+                {/* Additional Info */}
+                <p className="text-center text-gray-400/60 text-xs mt-4">
+                  You'll be able to review your address before paying
+                </p>
+              </div>
+            </form>
+            ) : (
+              /* Confirmation View */
+              <div className="bg-white shadow-sm rounded-2xl p-6 md:p-8 border border-gray-200">
+                <h2 className="text-xl font-bold text-white mb-2">Review Your Order</h2>
+                <p className="text-gray-500/60 text-sm mb-6">Please confirm your shipping address</p>
+
+                {/* Address Summary */}
+                <div className="bg-gray-50 rounded-xl p-5 mb-6 border border-gray-200">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-gray-700 font-semibold mb-3 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        Shipping To
+                      </h3>
+                      <div className="space-y-1 text-gray-700">
+                        <p className="font-medium">{address.name}</p>
+                        <p>{address.street1}</p>
+                        {address.street2 && <p>{address.street2}</p>}
+                        <p>{address.city}, {address.stateCode} {address.postalCode}</p>
+                        <p className="text-gray-500 text-sm mt-2">{address.phoneNumber}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowConfirmation(false)}
+                      className="text-purple-600 hover:text-purple-700 text-sm font-medium flex items-center gap-1"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Edit
+                    </button>
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-200">
+                    <div className="flex items-start gap-2 text-gray-600 text-sm">
+                      <svg className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      <div>
+                        <p className="font-medium text-gray-700">Contact Email</p>
+                        <p>{userEmail}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Submit Error */}
+                <AnimatePresence>
+                  {submitError && (
+                    <ApiError 
+                      error={submitError} 
+                      onRetry={() => {
+                        setSubmitError(null);
+                        handleCheckout();
+                      }} 
+                    />
+                  )}
+                </AnimatePresence>
+
+                {/* Payment Button */}
+                <button
+                  onClick={handleCheckout}
+                  disabled={isProcessing}
+                  aria-busy={isProcessing}
+                  className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:from-gray-500 disabled:to-gray-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-amber-500/25 transition-all hover:shadow-xl hover:shadow-amber-500/40 hover:scale-[1.02] disabled:scale-100 disabled:shadow-none disabled:cursor-not-allowed flex items-center justify-center gap-3 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-slate-900"
                 >
                   {isProcessing ? (
                     <>
@@ -629,7 +717,7 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                       </svg>
-                      <span>Pay ${(BOOK_PRICE / 100).toFixed(2)} — Secure Checkout</span>
+                      <span>Confirm & Pay ${(BOOK_PRICE / 100).toFixed(2)}</span>
                     </>
                   )}
                 </button>
@@ -641,7 +729,7 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
                   Your payment info is handled securely by Stripe.
                 </p>
               </div>
-            </form>
+            )}
 
             {/* Money Back Guarantee */}
             <div className="mt-6 p-4 bg-green-500/10 border border-green-500/20 rounded-xl">

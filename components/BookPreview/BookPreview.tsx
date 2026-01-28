@@ -500,16 +500,42 @@ function PageContent({
     );
   }
 
-  // Page without image yet
+  // Page without image yet - differentiate between processing and no upload
   if (!imageUrl) {
+    const isProcessing = image && (image.generationStatus === "generating" || image.generationStatus === "pending");
+    
     return (
       <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-stone-50 to-stone-100 p-6">
-        <div className="w-16 h-16 rounded-full bg-stone-200 flex items-center justify-center mb-4">
-          <svg className="w-8 h-8 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-        </div>
-        <p className="text-stone-400 text-sm text-center">Photo coming soon</p>
+        {isProcessing ? (
+          <>
+            {/* Processing spinner */}
+            <div className="relative w-16 h-16 mb-4">
+              <div className="absolute inset-0 border-4 border-amber-200 rounded-full" />
+              <div className="absolute inset-0 border-4 border-amber-400 rounded-full border-t-transparent animate-spin" />
+              <div className="absolute inset-0 flex items-center justify-center text-2xl">
+                ✨
+              </div>
+            </div>
+            <p className="text-amber-600 text-sm font-medium text-center">Transforming...</p>
+            <p className="text-stone-400 text-xs text-center mt-1">This takes 10-30 seconds</p>
+          </>
+        ) : (
+          <>
+            {/* No upload yet */}
+            <div className="w-16 h-16 rounded-full bg-stone-200 flex items-center justify-center mb-4">
+              <svg className="w-8 h-8 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <p className="text-stone-400 text-sm text-center mb-3">📷 No photo uploaded</p>
+            <a
+              href={`/books/${page.bookId}/edit`}
+              className="text-purple-600 hover:text-purple-700 text-xs font-medium underline"
+            >
+              Go to editor
+            </a>
+          </>
+        )}
         <span className="absolute bottom-4 text-stone-300 text-xs font-medium" style={{ [side === "left" ? "left" : "right"]: "16px" }}>
           {pageNum}
         </span>
@@ -529,7 +555,7 @@ function PageContent({
       {/* Story text overlay at bottom if exists */}
       {page.storyText && (
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent p-4 pt-12">
-          <p className="text-white text-sm leading-relaxed line-clamp-3">
+          <p className="text-white text-sm leading-relaxed line-clamp-3" style={{ textShadow: "0 2px 8px rgba(0, 0, 0, 0.7), 0 1px 3px rgba(0, 0, 0, 0.8)" }}>
             {page.storyText}
           </p>
         </div>

@@ -342,19 +342,28 @@ export default function BookEditorPage({
             </div>
 
             {/* Order Button */}
-            <Link href={`/books/${bookId}/checkout`}>
-              <button
-                className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${
-                  isAllComplete
-                    ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-500/25"
-                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                }`}
-                disabled={!isAllComplete}
-              >
-                <span>🛒</span>
-                <span>Order Book</span>
-              </button>
-            </Link>
+            <div className="relative group">
+              <Link href={isAllComplete ? `/books/${bookId}/checkout` : "#"}>
+                <button
+                  className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${
+                    isAllComplete
+                      ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-500/25"
+                      : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  }`}
+                  disabled={!isAllComplete}
+                >
+                  <span>🛒</span>
+                  <span>Order Book</span>
+                </button>
+              </Link>
+              {/* Tooltip for disabled state */}
+              {!isAllComplete && (
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
+                  Complete all images to order
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900" />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </footer>
@@ -410,21 +419,45 @@ function PagesPanel({
           </button>
 
           <div className="flex items-center gap-2 overflow-x-auto pb-1">
-            {pages.map((page, i) => (
-              <button
-                key={page._id}
-                onClick={() => onPageChange(i)}
-                className={`w-9 h-9 rounded-xl text-xs font-semibold transition-all flex-shrink-0 ${
-                  i === currentPageIndex
-                    ? "bg-purple-600 text-white shadow-md"
-                    : page.images?.length
-                      ? "bg-purple-50 text-purple-700 hover:bg-purple-100"
-                      : "bg-gray-50 text-gray-400 hover:bg-gray-100"
-                }`}
-              >
-                {i + 1}
-              </button>
-            ))}
+            {pages.map((page, i) => {
+              // Calculate page completion status
+              const pageImages = page.images || [];
+              const hasImages = pageImages.length > 0;
+              const completedCount = pageImages.filter(img => img.generationStatus === "completed").length;
+              const generatingCount = pageImages.filter(img => img.generationStatus === "generating").length;
+              const allComplete = hasImages && completedCount === pageImages.length;
+              const hasProcessing = generatingCount > 0;
+              
+              return (
+                <button
+                  key={page._id}
+                  onClick={() => onPageChange(i)}
+                  className={`w-9 h-9 rounded-xl text-xs font-semibold transition-all flex-shrink-0 relative ${
+                    i === currentPageIndex
+                      ? "bg-purple-600 text-white shadow-md"
+                      : hasImages
+                        ? "bg-purple-50 text-purple-700 hover:bg-purple-100"
+                        : "bg-gray-50 text-gray-400 hover:bg-gray-100"
+                  }`}
+                >
+                  {i + 1}
+                  {/* Status indicator dot */}
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
+                    {hasImages && (
+                      <div
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          allComplete
+                            ? "bg-emerald-500"
+                            : hasProcessing
+                              ? "bg-yellow-500 animate-pulse"
+                              : "bg-gray-400"
+                        }`}
+                      />
+                    )}
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
           <button
@@ -536,21 +569,28 @@ function PagesPanel({
                       </div>
                     </div>
                   </div>
-
-                  {/* Add Text Button - Always visible below images */}
-                  {image.generationStatus === "completed" && image.bakingStatus !== "baking" && (
-                    <button
-                      onClick={() => handleOpenOverlayEditor(image)}
-                      className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-900 hover:bg-gray-800 text-white rounded-xl transition-colors font-medium text-sm"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                      <span>{image.bakedUrl ? "Edit Text Overlay" : "Add Text to This Page"}</span>
-                    </button>
-                  )}
                 </div>
               ))}
+
+              {/* Add Text Button - ONE per page, not per image */}
+              {(() => {
+                // Find first completed image to use for text overlay
+                const completedImage = currentPage.images.find(
+                  img => img.generationStatus === "completed" && img.bakingStatus !== "baking"
+                );
+                
+                return completedImage ? (
+                  <button
+                    onClick={() => handleOpenOverlayEditor(completedImage)}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-900 hover:bg-gray-800 text-white rounded-xl transition-colors font-medium text-sm shadow-sm"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    <span>{completedImage.bakedUrl ? "Edit Text Overlay" : "Add Text to This Page"}</span>
+                  </button>
+                ) : null;
+              })()}
 
               {currentPage.images.length < 3 && (
                 <div className="pt-2">

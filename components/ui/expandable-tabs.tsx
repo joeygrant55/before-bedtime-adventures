@@ -100,27 +100,19 @@ export function ExpandableTabs({
             onClick={() => handleSelect(index)}
             transition={transition}
             className={cn(
-              "relative flex items-center rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-300",
+              "relative flex flex-col items-center rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-300 gap-0.5",
               selected === index
                 ? cn("bg-purple-600/20 shadow-inner", activeColor)
                 : "text-purple-300/70 hover:bg-slate-700/50 hover:text-purple-200"
             )}
           >
             <span className="text-lg">{tab.icon}</span>
-            <AnimatePresence initial={false}>
-              {selected === index && (
-                <motion.span
-                  variants={spanVariants}
-                  initial="initial"
-                  animate="animate"
-                  exit="exit"
-                  transition={transition}
-                  className="overflow-hidden whitespace-nowrap"
-                >
-                  {tab.title}
-                </motion.span>
-              )}
-            </AnimatePresence>
+            <span className={cn(
+              "text-[10px] font-medium whitespace-nowrap transition-all",
+              selected === index ? "opacity-100" : "opacity-60"
+            )}>
+              {tab.title}
+            </span>
           </motion.button>
         );
       })}

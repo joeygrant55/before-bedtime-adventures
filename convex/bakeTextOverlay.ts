@@ -40,13 +40,26 @@ export const bakeTextOverlay = action({
     }
 
     // Get all text overlays for this image
-    const overlays = await ctx.runQuery(api.textOverlays.getImageOverlays, {
+    const allOverlays = await ctx.runQuery(api.textOverlays.getImageOverlays, {
       imageId: args.imageId,
     });
 
-    // If no overlays, nothing to bake - just clear any existing baked image
+    // Filter out placeholder/default text that hasn't been customized
+    const defaultPlaceholders = [
+      "Chapter Title",
+      "Scene Title", 
+      "And so the adventure began...",
+      "Click to edit",
+      "Double-click to edit"
+    ];
+    
+    const overlays = allOverlays?.filter(overlay => 
+      !defaultPlaceholders.includes(overlay.content.trim())
+    );
+
+    // If no overlays (or only placeholders), nothing to bake - just clear any existing baked image
     if (!overlays || overlays.length === 0) {
-      console.log("No overlays to bake, clearing baked image");
+      console.log("No overlays to bake (only placeholders found), clearing baked image");
       await ctx.runMutation(api.textOverlays.updateBakingStatus, {
         imageId: args.imageId,
         status: "completed",
@@ -54,7 +67,7 @@ export const bakeTextOverlay = action({
       return { success: true };
     }
 
-    console.log(`📝 Found ${overlays.length} text overlays to bake`);
+    console.log(`📝 Found ${overlays.length} text overlays to bake (filtered out ${(allOverlays?.length || 0) - overlays.length} placeholders)`);
 
     // Update status to baking
     await ctx.runMutation(api.textOverlays.updateBakingStatus, {

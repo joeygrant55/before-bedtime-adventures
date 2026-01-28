@@ -210,7 +210,7 @@ export function DraggableTextBox({
     color: style.color,
     textAlign: style.textAlign,
     textShadow: style.hasShadow
-      ? "2px 2px 4px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.3)"
+      ? "0 2px 8px rgba(0, 0, 0, 0.7), 0 1px 3px rgba(0, 0, 0, 0.8)"
       : undefined,
     lineHeight: 1.3,
   };
