@@ -16,12 +16,14 @@ type TextOverlayEditorProps = {
   onClose: () => void;
 };
 
+type PositionPreset = "top" | "center" | "bottom";
+
 export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedOverlayId, setSelectedOverlayId] = useState<Id<"textOverlays"> | null>(null);
-  const [editingOverlayId, setEditingOverlayId] = useState<Id<"textOverlays"> | null>(null);
   const [isBaking, setIsBaking] = useState(false);
   const [showStylePanel, setShowStylePanel] = useState(false);
+  const [editingContent, setEditingContent] = useState("");
 
   // Fetch existing overlays
   const overlays = useQuery(api.textOverlays.getImageOverlays, { imageId });
@@ -36,11 +38,33 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
   // Get selected overlay data
   const selectedOverlay = overlays?.find((o) => o._id === selectedOverlayId);
 
+  // Position preset mappings
+  const getPositionForPreset = (preset: PositionPreset): TextOverlayPosition => {
+    const MARGIN = MARGIN_PERCENTAGES.safetyMargin;
+    const width = 100 - MARGIN * 2;
+
+    switch (preset) {
+      case "top":
+        return { x: 50, y: MARGIN + 5, width };
+      case "center":
+        return { x: 50, y: 50, width };
+      case "bottom":
+        return { x: 50, y: 85, width };
+    }
+  };
+
   // Show style panel when overlay is selected
-  const handleSelectOverlay = useCallback((id: Id<"textOverlays">) => {
-    setSelectedOverlayId(id);
-    setShowStylePanel(true);
-  }, []);
+  const handleSelectOverlay = useCallback(
+    (id: Id<"textOverlays">) => {
+      const overlay = overlays?.find((o) => o._id === id);
+      if (overlay) {
+        setSelectedOverlayId(id);
+        setEditingContent(overlay.content);
+        setShowStylePanel(true);
+      }
+    },
+    [overlays]
+  );
 
   // Handle preset application
   const handleApplyPreset = useCallback(
@@ -50,14 +74,18 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
         preset,
         content: content || POSITION_PRESETS[preset].defaultContent,
       });
+      // Select the newly created overlay
+      if (newOverlay) {
+        handleSelectOverlay(newOverlay);
+      }
     },
-    [createPreset, imageId]
+    [createPreset, imageId, handleSelectOverlay]
   );
 
   // Handle adding custom text box
   const handleAddCustom = useCallback(async () => {
     const MARGIN = MARGIN_PERCENTAGES.safetyMargin;
-    await createOverlay({
+    const newOverlayId = await createOverlay({
       imageId,
       content: "Click to edit",
       overlayType: "custom",
@@ -71,22 +99,31 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
         hasShadow: false,
       },
     });
-  }, [createOverlay, imageId]);
+    // Select the newly created overlay
+    if (newOverlayId) {
+      handleSelectOverlay(newOverlayId);
+    }
+  }, [createOverlay, imageId, handleSelectOverlay]);
 
-  // Handle content change
+  // Handle content change from textarea
   const handleContentChange = useCallback(
-    async (overlayId: Id<"textOverlays">, content: string) => {
-      await updateOverlay({ overlayId, content });
+    async (content: string) => {
+      setEditingContent(content);
+      if (selectedOverlayId) {
+        await updateOverlay({ overlayId: selectedOverlayId, content });
+      }
     },
-    [updateOverlay]
+    [selectedOverlayId, updateOverlay]
   );
 
-  // Handle position change
-  const handlePositionChange = useCallback(
-    async (overlayId: Id<"textOverlays">, position: TextOverlayPosition) => {
-      await updateOverlay({ overlayId, position });
+  // Handle position preset change
+  const handlePositionPresetChange = useCallback(
+    async (preset: PositionPreset) => {
+      if (!selectedOverlayId) return;
+      const position = getPositionForPreset(preset);
+      await updateOverlay({ overlayId: selectedOverlayId, position });
     },
-    [updateOverlay]
+    [selectedOverlayId, updateOverlay]
   );
 
   // Handle style change
@@ -110,6 +147,7 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
       if (selectedOverlayId === overlayId) {
         setSelectedOverlayId(null);
         setShowStylePanel(false);
+        setEditingContent("");
       }
     },
     [deleteOverlay, selectedOverlayId]
@@ -135,7 +173,7 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
   return (
     <TextOverlayModal isOpen={true} onClose={onClose}>
       <div className="h-full flex flex-col bg-white">
-        {/* Clean Header - Airbnb style */}
+        {/* Clean Header */}
         <header className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <button
             onClick={onClose}
@@ -167,9 +205,63 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
 
         {/* Main Content */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Left Panel - Quick Actions */}
-          <aside className="w-72 border-r border-gray-200 p-6 overflow-y-auto bg-gray-50">
+          {/* Left Panel - Text Editor & Controls */}
+          <aside className="w-80 border-r border-gray-200 p-6 overflow-y-auto bg-gray-50">
             <div className="space-y-6">
+              {/* Text Input (when layer selected) */}
+              {selectedOverlayId && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Text Content
+                  </label>
+                  <textarea
+                    value={editingContent}
+                    onChange={(e) => handleContentChange(e.target.value)}
+                    placeholder="Type your text here..."
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none font-sans"
+                    rows={4}
+                  />
+                </div>
+              )}
+
+              {/* Position Selector (when layer selected) */}
+              {selectedOverlayId && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-3">
+                    Position
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => handlePositionPresetChange("top")}
+                      className="flex flex-col items-center gap-2 px-3 py-3 bg-white border border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all"
+                    >
+                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-start justify-center pt-2">
+                        <div className="w-6 h-1 bg-purple-500 rounded-full" />
+                      </div>
+                      <span className="text-xs font-medium text-gray-700">Top</span>
+                    </button>
+                    <button
+                      onClick={() => handlePositionPresetChange("center")}
+                      className="flex flex-col items-center gap-2 px-3 py-3 bg-white border border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all"
+                    >
+                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                        <div className="w-6 h-1 bg-purple-500 rounded-full" />
+                      </div>
+                      <span className="text-xs font-medium text-gray-700">Center</span>
+                    </button>
+                    <button
+                      onClick={() => handlePositionPresetChange("bottom")}
+                      className="flex flex-col items-center gap-2 px-3 py-3 bg-white border border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all"
+                    >
+                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-end justify-center pb-2">
+                        <div className="w-6 h-1 bg-purple-500 rounded-full" />
+                      </div>
+                      <span className="text-xs font-medium text-gray-700">Bottom</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Quick Add Presets */}
               <div>
                 <h3 className="text-sm font-semibold text-gray-900 mb-3">Quick Add</h3>
@@ -178,7 +270,7 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
                     onClick={() => handleApplyPreset("title-top")}
                     className="w-full flex items-center gap-3 px-4 py-3 bg-white border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm transition-all text-left"
                   >
-                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-start justify-center pt-2">
                       <div className="w-6 h-1 bg-gray-400 rounded-full" />
                     </div>
                     <div>
@@ -191,7 +283,7 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
                     onClick={() => handleApplyPreset("title-bottom")}
                     className="w-full flex items-center gap-3 px-4 py-3 bg-white border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm transition-all text-left"
                   >
-                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-end pb-1">
+                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-end justify-center pb-2">
                       <div className="w-6 h-1 bg-gray-400 rounded-full" />
                     </div>
                     <div>
@@ -243,11 +335,11 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
                         onClick={() => handleSelectOverlay(overlay._id)}
                         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-left ${
                           selectedOverlayId === overlay._id
-                            ? "bg-gray-900 text-white"
+                            ? "bg-purple-500 text-white"
                             : "bg-white border border-gray-200 hover:border-gray-300 text-gray-900"
                         }`}
                       >
-                        <span className={`text-xs font-mono ${selectedOverlayId === overlay._id ? "text-gray-400" : "text-gray-500"}`}>
+                        <span className={`text-xs font-mono ${selectedOverlayId === overlay._id ? "text-purple-200" : "text-gray-500"}`}>
                           {index + 1}
                         </span>
                         <span className="text-sm truncate flex-1">
@@ -266,11 +358,11 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
                 <ul className="text-xs text-gray-500 space-y-1.5">
                   <li className="flex items-start gap-2">
                     <span className="text-gray-400">•</span>
-                    <span>Double-click text to edit</span>
+                    <span>Type in the text field above</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-gray-400">•</span>
-                    <span>Drag corners to resize</span>
+                    <span>Choose position: Top, Center, or Bottom</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-gray-400">•</span>
@@ -289,8 +381,8 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
               onClick={(e) => {
                 if (e.target === e.currentTarget || (e.target as HTMLElement).tagName === "IMG") {
                   setSelectedOverlayId(null);
-                  setEditingOverlayId(null);
                   setShowStylePanel(false);
+                  setEditingContent("");
                 }
               }}
             >
@@ -316,7 +408,7 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
                 </div>
               </div>
 
-              {/* Text Overlays */}
+              {/* Text Overlays - Display Only */}
               {overlays?.map((overlay) => (
                 <DraggableTextBox
                   key={overlay._id}
@@ -325,21 +417,7 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
                   position={overlay.position}
                   style={overlay.style}
                   isSelected={selectedOverlayId === overlay._id}
-                  isEditing={editingOverlayId === overlay._id}
-                  containerRef={containerRef}
                   onSelect={() => handleSelectOverlay(overlay._id)}
-                  onDeselect={() => {
-                    setSelectedOverlayId(null);
-                    setShowStylePanel(false);
-                  }}
-                  onStartEdit={() => {
-                    handleSelectOverlay(overlay._id);
-                    setEditingOverlayId(overlay._id);
-                  }}
-                  onEndEdit={() => setEditingOverlayId(null)}
-                  onContentChange={(content) => handleContentChange(overlay._id, content)}
-                  onPositionChange={(position) => handlePositionChange(overlay._id, position)}
-                  onDelete={() => handleDelete(overlay._id)}
                 />
               ))}
 
@@ -369,6 +447,7 @@ export function TextOverlayEditor({ imageId, imageUrl, onClose }: TextOverlayEdi
                     onClick={() => {
                       setShowStylePanel(false);
                       setSelectedOverlayId(null);
+                      setEditingContent("");
                     }}
                     className="text-gray-400 hover:text-gray-600 transition-colors"
                   >
