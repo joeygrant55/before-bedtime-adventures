@@ -70,7 +70,7 @@ export default defineSchema({
   pages: defineTable({
     bookId: v.id("books"),
     pageNumber: v.number(), // Stop number (1-14) - DEPRECATED, use sortOrder
-    sortOrder: v.number(), // Order in the book (0-based, for reordering)
+    sortOrder: v.optional(v.number()), // Order in the book (0-based, for reordering)
     title: v.optional(v.string()), // Location name (e.g., "Magic Kingdom")
     storyText: v.optional(v.string()), // User-written narrative text
 
