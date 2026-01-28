@@ -37,23 +37,25 @@ export function SpreadEditor({
   const rightImages = rightPage?.images || [];
   const allImages = [...leftImages, ...rightImages];
 
-  // Determine status for each slot
-  const getImageStatus = (index: number) => {
+  // Get image data for a specific slot
+  const getImageForSlot = (index: number) => {
     const image = allImages[index];
-    if (!image) return "empty";
-    if (image.generationStatus === "generating") return "transforming";
-    if (image.generationStatus === "completed") return "complete";
-    return "uploading";
+    if (!image) return undefined;
+
+    return {
+      _id: image._id,
+      originalImageUrl: image.originalUrl || undefined,
+      cartoonImageUrl: image.cartoonUrl || undefined,
+      bakedImageUrl: image.bakedUrl || undefined,
+      status: image.generationStatus, // "pending" | "generating" | "completed" | "failed"
+    };
   };
 
-  const getImageUrl = (index: number) => {
-    const image = allImages[index];
-    if (!image) return null;
-    return image.bakedUrl || image.cartoonUrl || null;
-  };
-
-  const getImageId = (index: number) => {
-    return allImages[index]?._id;
+  const getPageIdForSlot = (index: number) => {
+    // Slot 0 is always left page
+    if (index === 0) return leftPage._id;
+    // Slots 1+ are on right page (if it exists)
+    return rightPage?._id || leftPage._id;
   };
 
   const handleAddText = (index: number) => {
@@ -77,28 +79,28 @@ export function SpreadEditor({
             <div className="w-[400px] h-[400px] bg-white rounded-l-2xl shadow-lg p-6 relative">
               {currentLayout === "single" && (
                 <PhotoUploadSlot
-                  pageId={leftPage._id}
-                  imageUrl={getImageUrl(0)}
-                  imageId={getImageId(0)}
-                  status={getImageStatus(0)}
+                  pageId={getPageIdForSlot(0)}
+                  imageIndex={0}
+                  image={getImageForSlot(0)}
+                  aspectRatio="1/1"
                   onAddText={() => handleAddText(0)}
                 />
               )}
               {currentLayout === "duo" && (
                 <PhotoUploadSlot
-                  pageId={leftPage._id}
-                  imageUrl={getImageUrl(0)}
-                  imageId={getImageId(0)}
-                  status={getImageStatus(0)}
+                  pageId={getPageIdForSlot(0)}
+                  imageIndex={0}
+                  image={getImageForSlot(0)}
+                  aspectRatio="1/1"
                   onAddText={() => handleAddText(0)}
                 />
               )}
               {currentLayout === "trio" && (
                 <PhotoUploadSlot
-                  pageId={leftPage._id}
-                  imageUrl={getImageUrl(0)}
-                  imageId={getImageId(0)}
-                  status={getImageStatus(0)}
+                  pageId={getPageIdForSlot(0)}
+                  imageIndex={0}
+                  image={getImageForSlot(0)}
+                  aspectRatio="1/1"
                   onAddText={() => handleAddText(0)}
                 />
               )}
@@ -116,10 +118,10 @@ export function SpreadEditor({
               )}
               {currentLayout === "duo" && rightPage && (
                 <PhotoUploadSlot
-                  pageId={rightPage._id}
-                  imageUrl={getImageUrl(1)}
-                  imageId={getImageId(1)}
-                  status={getImageStatus(1)}
+                  pageId={getPageIdForSlot(1)}
+                  imageIndex={1}
+                  image={getImageForSlot(1)}
+                  aspectRatio="1/1"
                   onAddText={() => handleAddText(1)}
                 />
               )}
@@ -128,10 +130,10 @@ export function SpreadEditor({
                   <div className="flex-1">
                     {rightPage && (
                       <PhotoUploadSlot
-                        pageId={rightPage._id}
-                        imageUrl={getImageUrl(1)}
-                        imageId={getImageId(1)}
-                        status={getImageStatus(1)}
+                        pageId={getPageIdForSlot(1)}
+                        imageIndex={1}
+                        image={getImageForSlot(1)}
+                        aspectRatio="1/1"
                         onAddText={() => handleAddText(1)}
                       />
                     )}
@@ -139,10 +141,10 @@ export function SpreadEditor({
                   <div className="flex-1">
                     {rightPage && (
                       <PhotoUploadSlot
-                        pageId={rightPage._id}
-                        imageUrl={getImageUrl(2)}
-                        imageId={getImageId(2)}
-                        status={getImageStatus(2)}
+                        pageId={getPageIdForSlot(2)}
+                        imageIndex={2}
+                        image={getImageForSlot(2)}
+                        aspectRatio="1/1"
                         onAddText={() => handleAddText(2)}
                       />
                     )}
