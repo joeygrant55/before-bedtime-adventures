@@ -204,27 +204,28 @@ export default function BookEditorPage({
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2">
           <Link
             href="/dashboard"
-            className="text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-2"
+            className="text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1 sm:gap-2 flex-shrink-0"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            <span className="hidden sm:inline font-medium">Dashboard</span>
+            <span className="hidden sm:inline font-medium text-sm">Dashboard</span>
           </Link>
 
-          <h1 className="text-lg font-bold text-gray-900 truncate max-w-[200px] sm:max-w-none">
+          <h1 className="text-sm sm:text-base md:text-lg font-bold text-gray-900 truncate max-w-[120px] sm:max-w-[200px] md:max-w-none flex-1 text-center">
             {book.title}
           </h1>
 
           <Link
             href={`/books/${bookId}/preview`}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-sm"
+            className="bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-medium text-xs sm:text-sm transition-colors flex items-center gap-1 sm:gap-2 shadow-sm flex-shrink-0"
           >
-            <span>📖</span>
+            <span className="text-sm sm:text-base">📖</span>
             <span className="hidden sm:inline">Full Preview</span>
+            <span className="sm:hidden">Preview</span>
           </Link>
         </div>
       </header>
@@ -240,9 +241,9 @@ export default function BookEditorPage({
       </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col items-center px-4 pb-28 overflow-y-auto py-6">
+      <main className="flex-1 flex flex-col items-center px-4 pb-28 md:pb-24 overflow-y-auto py-6">
         {/* 3D Book Preview - Always Visible */}
-        <div className="mb-8 p-6 bg-gradient-to-br from-purple-100 via-pink-50 to-purple-50 rounded-3xl shadow-sm">
+        <div className="mb-6 md:mb-8 p-4 md:p-6 bg-gradient-to-br from-purple-100 via-pink-50 to-purple-50 rounded-2xl md:rounded-3xl shadow-sm">
           <MiniBookPreview
             book={previewBook as Doc<"books">}
             pages={pages as PageWithImages[]}
@@ -308,29 +309,29 @@ export default function BookEditorPage({
 
       {/* Progress Footer */}
       <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-4">
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
             {/* Progress */}
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 sm:gap-3 mb-1.5 sm:mb-2">
                 {generatingImages > 0 ? (
-                  <div className="flex items-center gap-2 text-purple-600">
-                    <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
-                    <span className="text-sm font-medium">Creating magic...</span>
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-purple-600">
+                    <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                    <span className="text-xs sm:text-sm font-medium truncate">Creating magic...</span>
                   </div>
                 ) : isAllComplete ? (
-                  <div className="flex items-center gap-2 text-emerald-600">
-                    <span>✨</span>
-                    <span className="text-sm font-semibold">Book ready!</span>
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-emerald-600">
+                    <span className="text-sm sm:text-base">✨</span>
+                    <span className="text-xs sm:text-sm font-semibold">Book ready!</span>
                   </div>
                 ) : totalImages > 0 ? (
-                  <span className="text-gray-600 text-sm font-medium">{completedImages}/{totalImages} images</span>
+                  <span className="text-gray-600 text-xs sm:text-sm font-medium">{completedImages}/{totalImages} images</span>
                 ) : (
-                  <span className="text-gray-400 text-sm">Upload photos to start</span>
+                  <span className="text-gray-400 text-xs sm:text-sm truncate">Upload photos to start</span>
                 )}
               </div>
               {totalImages > 0 && (
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden max-w-xs">
+                <div className="h-1.5 sm:h-2 bg-gray-100 rounded-full overflow-hidden max-w-[200px] sm:max-w-xs">
                   <div
                     className={`h-full transition-all duration-500 rounded-full ${
                       isAllComplete ? "bg-emerald-500" : "bg-gradient-to-r from-purple-500 to-pink-500"
@@ -342,23 +343,24 @@ export default function BookEditorPage({
             </div>
 
             {/* Order Button */}
-            <div className="relative group">
+            <div className="relative group flex-shrink-0">
               <Link href={isAllComplete ? `/books/${bookId}/checkout` : "#"}>
                 <button
-                  className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${
+                  className={`px-3 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center gap-1 sm:gap-2 ${
                     isAllComplete
                       ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-500/25"
                       : "bg-gray-100 text-gray-400 cursor-not-allowed"
                   }`}
                   disabled={!isAllComplete}
                 >
-                  <span>🛒</span>
-                  <span>Order Book</span>
+                  <span className="text-sm sm:text-base">🛒</span>
+                  <span className="hidden sm:inline">Order Book</span>
+                  <span className="sm:hidden">Order</span>
                 </button>
               </Link>
-              {/* Tooltip for disabled state */}
+              {/* Tooltip for disabled state - hidden on mobile */}
               {!isAllComplete && (
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
+                <div className="hidden sm:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
                   Complete all images to order
                   <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900" />
                 </div>
@@ -406,19 +408,19 @@ function PagesPanel({
   return (
     <div className="space-y-4">
       {/* Page Navigator Strip */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-        <div className="flex items-center justify-between mb-3">
+      <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100">
+        <div className="flex items-center justify-between mb-3 gap-2">
           <button
             onClick={() => onPageChange(Math.max(0, currentPageIndex - 1))}
             disabled={currentPageIndex === 0}
-            className="p-2 rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            className="p-1.5 sm:p-2 rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
 
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 scrollbar-hide flex-1">
             {pages.map((page, i) => {
               // Calculate page completion status
               const pageImages = page.images || [];
@@ -432,7 +434,7 @@ function PagesPanel({
                 <button
                   key={page._id}
                   onClick={() => onPageChange(i)}
-                  className={`w-9 h-9 rounded-xl text-xs font-semibold transition-all flex-shrink-0 relative ${
+                  className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl text-xs font-semibold transition-all flex-shrink-0 relative ${
                     i === currentPageIndex
                       ? "bg-purple-600 text-white shadow-md"
                       : hasImages
@@ -442,10 +444,10 @@ function PagesPanel({
                 >
                   {i + 1}
                   {/* Status indicator dot */}
-                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
+                  <div className="absolute -bottom-0.5 sm:-bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
                     {hasImages && (
                       <div
-                        className={`w-1.5 h-1.5 rounded-full ${
+                        className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${
                           allComplete
                             ? "bg-emerald-500"
                             : hasProcessing
@@ -463,15 +465,15 @@ function PagesPanel({
           <button
             onClick={() => onPageChange(Math.min(pages.length - 1, currentPageIndex + 1))}
             disabled={currentPageIndex === pages.length - 1}
-            className="p-2 rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            className="p-1.5 sm:p-2 rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
         </div>
 
-        <div className="text-center text-gray-500 text-sm font-medium">
+        <div className="text-center text-gray-500 text-xs sm:text-sm font-medium mt-2">
           Page {currentPageIndex + 1} of {pages.length}
         </div>
       </div>
@@ -517,8 +519,8 @@ function PagesPanel({
                     </svg>
                   </button>
 
-                  {/* Image Preview - Before/After side by side */}
-                  <div className="grid grid-cols-2 gap-4">
+                  {/* Image Preview - Before/After stacked on mobile, side by side on desktop */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     {/* Original */}
                     <div className="space-y-2">
                       <p className="text-gray-500 text-xs font-medium text-center">Original</p>
@@ -671,7 +673,7 @@ function CoverPanel({
           {allImages.length > 0 ? (
             <div className="mb-4">
               <p className="text-gray-500 text-xs mb-3">Select from your transformed images:</p>
-              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3">
                 {allImages.map((img, index) => (
                   img.cartoonUrl && (
                     <button

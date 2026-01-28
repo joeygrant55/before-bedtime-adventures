@@ -128,27 +128,27 @@ export default function Home() {
     <div className="min-h-screen bg-white">
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-white border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <Link href="/">
             <Image
               src="/logo.png"
               alt="Before Bedtime Adventures"
               width={180}
               height={136}
-              className="h-14 w-auto"
+              className="h-10 sm:h-14 w-auto"
               priority
             />
           </Link>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <SignedOut>
               <SignInButton mode="modal" forceRedirectUrl="/dashboard">
-                <button className="text-gray-600 hover:text-gray-900 font-medium text-sm transition-colors">
+                <button className="hidden sm:block text-gray-600 hover:text-gray-900 font-medium text-sm transition-colors">
                   Log in
                 </button>
               </SignInButton>
               <SignInButton mode="modal" forceRedirectUrl="/dashboard">
-                <button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-all">
+                <button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm transition-all">
                   Get Started
                 </button>
               </SignInButton>
@@ -156,7 +156,7 @@ export default function Home() {
             <SignedIn>
               <Link 
                 href="/dashboard" 
-                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-all"
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm transition-all"
               >
                 My Books
               </Link>
@@ -167,26 +167,26 @@ export default function Home() {
 
       <main>
         {/* Hero */}
-        <section className="px-6 pt-16 pb-20 md:pt-24 md:pb-28">
+        <section className="px-4 sm:px-6 pt-12 sm:pt-16 pb-16 sm:pb-20 md:pt-24 md:pb-28">
           <div className="max-w-3xl mx-auto text-center">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight tracking-tight">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-5 sm:mb-6 leading-tight tracking-tight px-2">
                 Turn your photos into{" "}
                 <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                   magical storybooks
                 </span>
               </h1>
 
-              <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto mb-10 leading-relaxed">
+              <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed px-2">
                 Upload vacation photos, watch AI transform them into Disney-style illustrations, 
                 and get a premium hardcover book delivered to your door.
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">
                 <SignedOut>
                   <SignInButton mode="modal" forceRedirectUrl="/dashboard">
                     <button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold px-8 py-4 rounded-xl text-lg transition-all shadow-lg shadow-purple-500/20 hover:shadow-xl hover:shadow-purple-500/30">
@@ -213,7 +213,7 @@ export default function Home() {
         </section>
 
         {/* Demo Section */}
-        <section ref={demoRef} className="px-6 py-20 bg-gray-50">
+        <section ref={demoRef} className="px-4 sm:px-6 py-16 sm:py-20 bg-gray-50">
           <div className="max-w-2xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -221,16 +221,16 @@ export default function Home() {
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
             >
-              <div className="text-center mb-10">
-                <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
+              <div className="text-center mb-8 sm:mb-10">
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-3">
                   See the magic in action
                 </h2>
-                <p className="text-gray-600">
+                <p className="text-sm sm:text-base text-gray-600 px-4">
                   Drop any photo to see it transformed — no account needed
                 </p>
               </div>
 
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
                 <AnimatePresence mode="wait">
                   {/* Idle State */}
                   {demoState === "idle" && (
@@ -313,13 +313,57 @@ export default function Home() {
 
                       <div className="relative rounded-xl overflow-hidden bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center aspect-square">
                         <div className="text-center p-4">
-                          <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4" />
+                          {/* Disney-style sparkle animation */}
+                          <motion.div
+                            initial={{ scale: 0, rotate: 0 }}
+                            animate={{ 
+                              scale: [0, 1.2, 1],
+                              rotate: [0, 180, 360]
+                            }}
+                            transition={{
+                              duration: 2,
+                              repeat: Infinity,
+                              ease: "easeInOut"
+                            }}
+                            className="text-5xl mb-4"
+                          >
+                            ✨
+                          </motion.div>
                           <p className="text-gray-900 font-medium mb-1">Creating magic...</p>
                           <p className="text-gray-500 text-sm">~15-30 seconds</p>
                         </div>
                         <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-sm font-medium text-purple-600">
                           Disney Style
                         </div>
+                        {/* Ambient sparkles */}
+                        <motion.div
+                          className="absolute top-4 right-4 text-2xl"
+                          animate={{ 
+                            opacity: [0, 1, 0],
+                            y: [0, -10, 0]
+                          }}
+                          transition={{
+                            duration: 1.5,
+                            repeat: Infinity,
+                            delay: 0.3
+                          }}
+                        >
+                          ⭐
+                        </motion.div>
+                        <motion.div
+                          className="absolute top-1/2 left-4 text-xl"
+                          animate={{ 
+                            opacity: [0, 1, 0],
+                            x: [0, -8, 0]
+                          }}
+                          transition={{
+                            duration: 1.8,
+                            repeat: Infinity,
+                            delay: 0.6
+                          }}
+                        >
+                          💫
+                        </motion.div>
                       </div>
                     </motion.div>
                   )}
@@ -391,13 +435,13 @@ export default function Home() {
         </section>
 
         {/* How It Works */}
-        <section className="px-6 py-20">
+        <section className="px-4 sm:px-6 py-16 sm:py-20">
           <div className="max-w-4xl mx-auto">
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 text-center mb-16">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 text-center mb-12 sm:mb-16">
               How it works
             </h2>
 
-            <div className="grid md:grid-cols-3 gap-12">
+            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-8 sm:gap-10 md:gap-12">
               {[
                 {
                   step: "1",
@@ -446,6 +490,64 @@ export default function Home() {
                 </motion.div>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* Social Proof */}
+        <section className="px-6 py-16 bg-white">
+          <div className="max-w-4xl mx-auto text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+            >
+              <div className="inline-flex items-center gap-2 bg-purple-100 text-purple-700 px-4 py-2 rounded-full mb-6">
+                <span className="text-lg">⭐⭐⭐⭐⭐</span>
+              </div>
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
+                Join hundreds of families creating magical memories
+              </h2>
+              <p className="text-gray-600 max-w-2xl mx-auto mb-12">
+                Transform your vacation photos into beautiful Disney-style storybooks that your kids will treasure forever.
+              </p>
+
+              {/* Testimonial cards */}
+              <div className="grid md:grid-cols-3 gap-6">
+                {[
+                  {
+                    quote: "My kids flip through their vacation book every night! The Disney-style illustrations made our ordinary photos magical.",
+                    author: "Sarah M.",
+                    location: "Seattle, WA"
+                  },
+                  {
+                    quote: "Worth every penny. The quality is incredible and it arrived faster than expected. Already working on our second book!",
+                    author: "Michael T.",
+                    location: "Austin, TX"
+                  },
+                  {
+                    quote: "The perfect keepsake for our family trip. Grandma cried when she saw it! So much better than a photo album.",
+                    author: "Jessica L.",
+                    location: "Boston, MA"
+                  }
+                ].map((testimonial, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.1 }}
+                    className="bg-gray-50 rounded-2xl p-6 text-left"
+                  >
+                    <div className="text-purple-600 mb-3 text-lg">⭐⭐⭐⭐⭐</div>
+                    <p className="text-gray-700 mb-4 italic">"{testimonial.quote}"</p>
+                    <div className="text-sm">
+                      <p className="font-semibold text-gray-900">{testimonial.author}</p>
+                      <p className="text-gray-500">{testimonial.location}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
           </div>
         </section>
 

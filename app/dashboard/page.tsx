@@ -152,7 +152,7 @@ function DashboardContent() {
 
         {/* Filter Tabs */}
         {books && books.length > 0 && (
-          <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-lg w-fit">
+          <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-lg w-full sm:w-fit overflow-x-auto">
             {[
               { key: "all", label: "All" },
               { key: "in_progress", label: "In Progress" },
@@ -161,7 +161,7 @@ function DashboardContent() {
               <button
                 key={filter.key}
                 onClick={() => setActiveFilter(filter.key as FilterType)}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                className={`px-3 sm:px-4 py-2 text-sm font-medium rounded-md transition-all whitespace-nowrap flex-shrink-0 ${
                   activeFilter === filter.key
                     ? "bg-white text-gray-900 shadow-sm"
                     : "text-gray-600 hover:text-gray-900"
