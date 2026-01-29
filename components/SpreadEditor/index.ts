@@ -1,6 +1,5 @@
 export { SpreadEditor } from "./SpreadEditor";
 export { MobilePageEditor } from "./MobilePageEditor";
-export { SpreadNavigator } from "./SpreadNavigator";
 export { TemplateSelector } from "./TemplateSelector";
 export { PhotoUploadSlot } from "./PhotoUploadSlot";
 export { CaptionArea } from "./CaptionArea";
