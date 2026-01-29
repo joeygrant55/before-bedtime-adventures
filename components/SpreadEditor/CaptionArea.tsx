@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Id } from "@/convex/_generated/dataModel";
-import { FONTS } from "@/lib/print-specs";
 
 interface CaptionAreaProps {
   pageId: Id<"pages">;
@@ -91,9 +90,9 @@ export function CaptionArea({
   const isNearLimit = charCount >= MAX_CHARS * 0.8; // Show count at 80%
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full h-full">
       {/* Caption text area */}
-      <div className="relative">
+      <div className="relative h-full">
         <textarea
           ref={textareaRef}
           value={text}
@@ -101,21 +100,16 @@ export function CaptionArea({
           onBlur={handleBlur}
           placeholder={placeholder}
           className={`
-            w-full min-h-[100px] px-4 py-3
+            w-full h-full px-4 py-3
             bg-gradient-to-b from-amber-50 to-orange-50
-            border-t border-gray-200
-            rounded-b-lg
+            border-none
             resize-none
             outline-none
             focus:ring-2 focus:ring-purple-300 focus:ring-opacity-50
             transition-all duration-200
-            ${FONTS.storybook.family}
-            text-gray-700 text-base leading-relaxed
+            text-gray-700 text-sm leading-relaxed
             placeholder:text-gray-400 placeholder:italic
           `}
-          style={{
-            fontFamily: FONTS.storybook.family,
-          }}
           aria-label="Story caption text"
           maxLength={MAX_CHARS}
         />

@@ -3,23 +3,21 @@
 import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
+import { Id, Doc } from "@/convex/_generated/dataModel";
 
-interface ImageWithInfo {
-  _id: Id<"images">;
-  cartoonUrl: string | null;
-  bakedUrl: string | null;
-}
+type PageWithImages = Doc<"pages"> & {
+  images: any[];
+};
 
 interface WriteMyStoryButtonProps {
   bookTitle: string;
-  allImages: ImageWithInfo[];
+  pages: PageWithImages[];
   variant?: "header" | "inline";
 }
 
 export function WriteMyStoryButton({
   bookTitle,
-  allImages,
+  pages,
   variant = "header",
 }: WriteMyStoryButtonProps) {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -27,58 +25,51 @@ export function WriteMyStoryButton({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const createOrUpdateStoryOverlay = useMutation(api.textOverlays.createOrUpdateStoryOverlay);
-
-  // Filter to only completed images that have cartoon/baked URLs
-  const validImages = allImages.filter(
-    (img) => img.cartoonUrl || img.bakedUrl
-  );
+  const updatePageText = useMutation(api.pages.updatePageText);
+  const pageCount = pages.length;
 
   const handleGenerateStories = async () => {
-    if (validImages.length === 0) {
-      setError("No transformed images found. Please wait for images to complete.");
+    if (pageCount === 0) {
+      setError("No pages found. Please add some spreads first.");
       return;
     }
 
     setIsGenerating(true);
     setError(null);
     setSuccess(false);
-    setProgress({ current: 0, total: validImages.length });
+    setProgress({ current: 0, total: pageCount });
 
     try {
-      // Prepare image URLs
-      const imageUrls = validImages.map((img) => img.bakedUrl || img.cartoonUrl!);
-
-      // Call the batch API
+      // Call the simplified batch API (text-only generation)
       const response = await fetch("/api/suggest-story-batch", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          images: imageUrls,
           bookTitle,
+          pageCount,
         }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to generate story suggestions");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to generate story suggestions");
       }
 
       const data = await response.json();
       const suggestions: string[] = data.suggestions || [];
 
-      // Create or update text overlays for each image
-      for (let i = 0; i < validImages.length; i++) {
-        const image = validImages[i];
+      // Update each page with its suggested story text
+      for (let i = 0; i < pages.length; i++) {
+        const page = pages[i];
         const suggestion = suggestions[i] || "A magical moment from our adventure.";
 
-        setProgress({ current: i + 1, total: validImages.length });
+        setProgress({ current: i + 1, total: pageCount });
 
-        // Use the mutation that creates or updates story overlays
-        await createOrUpdateStoryOverlay({
-          imageId: image._id,
-          content: suggestion,
+        await updatePageText({
+          pageId: page._id,
+          storyText: suggestion,
         });
       }
 
@@ -86,14 +77,14 @@ export function WriteMyStoryButton({
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       console.error("Error generating stories:", err);
-      setError("Failed to generate stories. Please try again.");
+      setError(err instanceof Error ? err.message : "Failed to generate stories. Please try again.");
     } finally {
       setIsGenerating(false);
       setProgress({ current: 0, total: 0 });
     }
   };
 
-  const isDisabled = validImages.length === 0 || isGenerating;
+  const isDisabled = pageCount === 0 || isGenerating;
 
   if (variant === "inline") {
     return (
@@ -101,31 +92,31 @@ export function WriteMyStoryButton({
         <button
           onClick={handleGenerateStories}
           disabled={isDisabled}
-          className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/25 hover:shadow-xl hover:scale-105"
+          className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center gap-2"
         >
           {isGenerating ? (
             <>
-              <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin" />
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               <span>
-                ✨ Writing... {progress.current}/{progress.total}
+                Writing... {progress.current}/{progress.total}
               </span>
             </>
           ) : success ? (
             <>
-              <span className="text-lg">✅</span>
+              <span>✅</span>
               <span>Stories Generated!</span>
             </>
           ) : (
             <>
-              <span className="text-lg">✨</span>
+              <span>✨</span>
               <span>Write My Story</span>
             </>
           )}
         </button>
         
-        {validImages.length === 0 && (
+        {pageCount === 0 && (
           <p className="text-amber-600 text-xs text-center">
-            Upload and transform photos first
+            Add some spreads first
           </p>
         )}
         
@@ -135,7 +126,7 @@ export function WriteMyStoryButton({
         
         {success && (
           <p className="text-emerald-600 text-xs text-center">
-            ✨ Story text added to all pages! Click "Add Text" on any image to edit.
+            ✨ Story captions generated for {pageCount} pages!
           </p>
         )}
       </div>
@@ -171,15 +162,15 @@ export function WriteMyStoryButton({
       </button>
 
       {/* Tooltip */}
-      {!isGenerating && !success && validImages.length > 0 && (
+      {!isGenerating && !success && pageCount > 0 && (
         <div className="hidden group-hover:block absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap shadow-lg z-50">
-          AI will write story text for all {validImages.length} images
+          AI will write story text for all {pageCount} pages
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 border-4 border-transparent border-b-gray-900" />
         </div>
       )}
 
       {error && (
-        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 bg-red-500 text-white text-xs rounded-lg whitespace-nowrap shadow-lg z-50">
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 bg-red-500 text-white text-xs rounded-lg whitespace-nowrap shadow-lg z-50 max-w-xs">
           {error}
         </div>
       )}

@@ -11,14 +11,7 @@ const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { images, bookTitle, context } = body;
-
-    if (!Array.isArray(images) || images.length === 0) {
-      return NextResponse.json(
-        { error: "images array is required and must not be empty" },
-        { status: 400 }
-      );
-    }
+    const { bookTitle, pageCount, context } = body;
 
     if (!bookTitle) {
       return NextResponse.json(
@@ -27,57 +20,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch images and convert to base64
-    const imageDataArray = await Promise.all(
-      images.map(async (imageUrl: string) => {
-        try {
-          const response = await fetch(imageUrl);
-          const buffer = await response.arrayBuffer();
-          const base64 = Buffer.from(buffer).toString("base64");
-          const mimeType = response.headers.get("content-type") || "image/jpeg";
-          return {
-            inlineData: {
-              data: base64,
-              mimeType,
-            },
-          };
-        } catch (error) {
-          console.error(`Failed to fetch image ${imageUrl}:`, error);
-          return null;
-        }
-      })
-    );
-
-    // Filter out failed fetches
-    const validImages = imageDataArray.filter((img) => img !== null);
-
-    if (validImages.length === 0) {
+    if (!pageCount || pageCount < 1) {
       return NextResponse.json(
-        { error: "Failed to fetch any valid images" },
+        { error: "pageCount is required and must be at least 1" },
         { status: 400 }
       );
     }
 
-    const prompt = `You are a children's storybook author. Given these illustrations from a family photo book titled "${bookTitle}", write a short, warm story caption for each page.
+    // Generate story captions based on book title and page count (text-only, no image analysis)
+    const prompt = `You are a children's storybook author. I need you to write a warm, engaging story for a family photo book titled "${bookTitle}" with ${pageCount} pages.
 
 Guidelines:
+- Write EXACTLY ${pageCount} captions, one for each page
 - Each caption should be 1-2 sentences (under 150 characters)
 - Use warm, whimsical language appropriate for a children's bedtime story
-- Reference what you see in the illustrations
-- Create a narrative flow across pages (beginning, middle, end)
+- Create a narrative arc: beginning → middle → end
 - Use the child's perspective when possible
-- Make it feel magical and loving
-${context ? `\n\nAdditional context: ${context}` : ""}
+- Make it feel magical, loving, and adventurous
+- Since this is a photo book, reference moments, memories, and family experiences${context ? `\n\nAdditional context: ${context}` : ""}
 
-Return your response as a JSON array of strings, one for each image, in order. Only return the JSON array, nothing else.
+Return your response as a JSON array of strings, one caption for each page, in order. Only return the JSON array, nothing else.
 
-Example format:
-["Caption for first image", "Caption for second image", "Caption for third image"]`;
+Example format for a 6-page book:
+["Once upon a time, our adventure began...", "We discovered magical new places.", "Every moment was filled with wonder.", "Together we laughed and played.", "We made memories to treasure forever.", "And they lived happily ever after."]
 
-    // Create content parts with all images
-    const parts = [...validImages, { text: prompt }];
+Now generate ${pageCount} captions for "${bookTitle}":`;
 
-    const result = await model.generateContent(parts);
+    const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
 
@@ -93,20 +62,23 @@ Example format:
         suggestions = text
           .split("\n")
           .filter((line) => line.trim())
-          .map((line) => line.replace(/^[0-9]+\.\s*/, "").replace(/^["']|["']$/g, "").trim());
+          .map((line) => line.replace(/^[0-9]+\.\s*/, "").replace(/^["']|["']$/g, "").trim())
+          .filter((line) => line.length > 0);
       }
 
-      // Ensure we have the right number of suggestions
-      while (suggestions.length < validImages.length) {
+      // Ensure we have exactly the right number of suggestions
+      while (suggestions.length < pageCount) {
         suggestions.push("A magical moment from our adventure.");
       }
-      suggestions = suggestions.slice(0, validImages.length);
+      suggestions = suggestions.slice(0, pageCount);
     } catch (parseError) {
       console.error("Failed to parse suggestions:", parseError);
       // Fallback: generic suggestions
-      suggestions = validImages.map(
-        (_, i) => `A wonderful moment from page ${i + 1} of our adventure.`
-      );
+      suggestions = Array.from({ length: pageCount }, (_, i) => {
+        if (i === 0) return "Once upon a time, our adventure began...";
+        if (i === pageCount - 1) return "And they lived happily ever after.";
+        return `A wonderful moment from page ${i + 1} of our adventure.`;
+      });
     }
 
     return NextResponse.json({ suggestions });
