@@ -8,6 +8,7 @@ interface CaptionAreaProps {
   initialText: string;
   placeholder?: string;
   onSave: (text: string) => void;
+  editable?: boolean;
 }
 
 const MAX_CHARS = 150;
@@ -18,6 +19,7 @@ export function CaptionArea({
   initialText,
   placeholder = "Write your story here...",
   onSave,
+  editable = true,
 }: CaptionAreaProps) {
   const [text, setText] = useState(initialText);
   const [isSaving, setIsSaving] = useState(false);
@@ -99,13 +101,14 @@ export function CaptionArea({
           onChange={handleChange}
           onBlur={handleBlur}
           placeholder={placeholder}
+          readOnly={!editable}
           className={`
             w-full h-full px-4 py-3
             bg-gradient-to-b from-amber-50 to-orange-50
             border-none
             resize-none
             outline-none
-            focus:ring-2 focus:ring-purple-300 focus:ring-opacity-50
+            ${editable ? "focus:ring-2 focus:ring-purple-300 focus:ring-opacity-50" : "cursor-default"}
             transition-all duration-200
             text-gray-700 text-sm leading-relaxed
             placeholder:text-gray-400 placeholder:italic

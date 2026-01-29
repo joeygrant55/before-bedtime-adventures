@@ -89,7 +89,7 @@ export function SpreadEditor({
               {currentLayout === "single" && (
                 <div className="flex flex-col h-full">
                   <div className="flex-[3]">
-                    <PhotoUploadSlot
+                    <PhotoUploadSlot editable={editable}
                       pageId={getPageIdForSlot(0)}
                       imageIndex={0}
                       image={getImageForSlot(0)}
@@ -102,6 +102,7 @@ export function SpreadEditor({
                       initialText={leftPage.storyText || ""}
                       placeholder="Write your story here..."
                       onSave={(text) => handleCaptionSave(leftPage._id, text)}
+                      editable={editable}
                     />
                   </div>
                 </div>
@@ -109,7 +110,7 @@ export function SpreadEditor({
               {currentLayout === "duo" && (
                 <div className="flex flex-col h-full">
                   <div className="flex-[3]">
-                    <PhotoUploadSlot
+                    <PhotoUploadSlot editable={editable}
                       pageId={getPageIdForSlot(0)}
                       imageIndex={0}
                       image={getImageForSlot(0)}
@@ -122,6 +123,7 @@ export function SpreadEditor({
                       initialText={leftPage.storyText || ""}
                       placeholder="Write your story here..."
                       onSave={(text) => handleCaptionSave(leftPage._id, text)}
+                      editable={editable}
                     />
                   </div>
                 </div>
@@ -129,7 +131,7 @@ export function SpreadEditor({
               {currentLayout === "trio" && (
                 <div className="flex flex-col h-full">
                   <div className="flex-[3]">
-                    <PhotoUploadSlot
+                    <PhotoUploadSlot editable={editable}
                       pageId={getPageIdForSlot(0)}
                       imageIndex={0}
                       image={getImageForSlot(0)}
@@ -142,6 +144,7 @@ export function SpreadEditor({
                       initialText={leftPage.storyText || ""}
                       placeholder="Write your story here..."
                       onSave={(text) => handleCaptionSave(leftPage._id, text)}
+                      editable={editable}
                     />
                   </div>
                 </div>
@@ -165,7 +168,7 @@ export function SpreadEditor({
               {currentLayout === "duo" && rightPage && (
                 <div className="flex flex-col h-full">
                   <div className="flex-[3]">
-                    <PhotoUploadSlot
+                    <PhotoUploadSlot editable={editable}
                       pageId={getPageIdForSlot(1)}
                       imageIndex={1}
                       image={getImageForSlot(1)}
@@ -178,6 +181,7 @@ export function SpreadEditor({
                       initialText={rightPage.storyText || ""}
                       placeholder="Write your story here..."
                       onSave={(text) => handleCaptionSave(rightPage._id, text)}
+                      editable={editable}
                     />
                   </div>
                 </div>
@@ -187,7 +191,7 @@ export function SpreadEditor({
                   <div className="flex-[3] flex flex-col gap-2 p-4">
                     <div className="flex-1">
                       {rightPage && (
-                        <PhotoUploadSlot
+                        <PhotoUploadSlot editable={editable}
                           pageId={getPageIdForSlot(1)}
                           imageIndex={1}
                           image={getImageForSlot(1)}
@@ -197,7 +201,7 @@ export function SpreadEditor({
                     </div>
                     <div className="flex-1">
                       {rightPage && (
-                        <PhotoUploadSlot
+                        <PhotoUploadSlot editable={editable}
                           pageId={getPageIdForSlot(2)}
                           imageIndex={2}
                           image={getImageForSlot(2)}
@@ -213,6 +217,7 @@ export function SpreadEditor({
                         initialText={rightPage.storyText || ""}
                         placeholder="Write your story here..."
                         onSave={(text) => handleCaptionSave(rightPage._id, text)}
+                      editable={editable}
                       />
                     )}
                   </div>
@@ -227,8 +232,8 @@ export function SpreadEditor({
             <span>{rightPage?.sortOrder !== undefined ? (rightPage.sortOrder * 2 + 2) : "—"}</span>
           </div>
 
-          {/* Template selector toggle button - bottom right corner */}
-          {onToggleTemplateSelector && (
+          {/* Template selector toggle button - bottom right corner (edit mode only) */}
+          {editable && onToggleTemplateSelector && (
             <button
               onClick={onToggleTemplateSelector}
               className="absolute bottom-4 right-4 w-10 h-10 bg-white/90 hover:bg-white border-2 border-gray-200 hover:border-purple-400 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110"
@@ -240,8 +245,8 @@ export function SpreadEditor({
         </div>
       </div>
 
-      {/* Template Selector - shown on demand */}
-      {showTemplateSelector && (
+      {/* Template Selector - shown on demand (edit mode only) */}
+      {editable && showTemplateSelector && (
         <div className="bg-white rounded-xl p-4 shadow-lg border-2 border-purple-200">
           <TemplateSelector selected={currentLayout} onChange={onLayoutChange} />
         </div>

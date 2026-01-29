@@ -1,4 +1,5 @@
 export { SpreadEditor } from "./SpreadEditor";
+export { MobilePageEditor } from "./MobilePageEditor";
 export { SpreadNavigator } from "./SpreadNavigator";
 export { TemplateSelector } from "./TemplateSelector";
 export { PhotoUploadSlot } from "./PhotoUploadSlot";
@@ -6,3 +7,5 @@ export { CaptionArea } from "./CaptionArea";
 export { SuggestStoryButton } from "./SuggestStoryButton";
 export { PrintPagePreview, TrioPagePreview } from "./PrintPagePreview";
 export { SpreadPreview } from "./SpreadPreview";
+export { CoverSpread } from "./CoverSpread";
+export { BackCoverSpread } from "./BackCoverSpread";

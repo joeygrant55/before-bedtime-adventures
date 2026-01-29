@@ -5,7 +5,7 @@ import { useQuery, useMutation } from "convex/react";
 import { useUser } from "@clerk/nextjs";
 import { api } from "@/convex/_generated/api";
 import { Id, Doc } from "@/convex/_generated/dataModel";
-import { SpreadEditor } from "@/components/SpreadEditor";
+import { SpreadEditor, CoverSpread, BackCoverSpread } from "@/components/SpreadEditor";
 import { MobilePageEditor } from "@/components/SpreadEditor/MobilePageEditor";
 import { WriteMyStoryButton } from "@/components/WriteMyStoryButton";
 import Link from "next/link";
@@ -262,7 +262,7 @@ export default function BookEditorPage({
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <Link
               href="/dashboard"
-              className="text-gray-500 hover:text-gray-900 transition-colors flex-shrink-0"
+              className="text-gray-500 hover:text-gray-900 transition-colors flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center -ml-2"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -281,6 +281,7 @@ export default function BookEditorPage({
                 }}
                 autoFocus
                 className="text-lg font-bold text-gray-900 flex-1 bg-purple-50 border-2 border-purple-400 rounded px-3 py-1 outline-none min-w-0"
+                style={{ fontSize: "16px" }}
               />
             ) : (
               <button
@@ -299,27 +300,28 @@ export default function BookEditorPage({
           {isReadThrough ? (
             <button
               onClick={() => router.push(`/books/${bookId}/edit`)}
-              className="px-6 py-2 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 flex-shrink-0 bg-white border-2 border-gray-200 hover:border-purple-400 text-gray-700 hover:text-purple-600"
+              className="px-4 sm:px-6 py-2 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 flex-shrink-0 bg-white border-2 border-gray-200 hover:border-purple-400 text-gray-700 hover:text-purple-600 min-h-[44px]"
             >
               <span>✏️</span>
-              <span>Edit</span>
+              <span className="hidden sm:inline">Edit</span>
             </button>
           ) : (
             <>
               {isReadyToOrder ? (
                 <Link href={`/books/${bookId}/checkout`}>
-                  <button className="px-6 py-2 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 flex-shrink-0 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-md">
+                  <button className="px-4 sm:px-6 py-2 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 flex-shrink-0 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-md min-h-[44px]">
                     <span>📦</span>
-                    <span>Order Book</span>
+                    <span className="hidden sm:inline">Order Book</span>
+                    <span className="sm:hidden">Order</span>
                   </button>
                 </Link>
               ) : (
                 <button
                   onClick={() => router.push(`/books/${bookId}/edit?mode=readthrough`)}
-                  className="px-6 py-2 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 flex-shrink-0 bg-gray-100 hover:bg-gray-200 text-gray-700"
+                  className="px-4 sm:px-6 py-2 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 flex-shrink-0 bg-gray-100 hover:bg-gray-200 text-gray-700 min-h-[44px]"
                 >
                   <span>👁️</span>
-                  <span>Preview</span>
+                  <span className="hidden sm:inline">Preview</span>
                 </button>
               )}
             </>
@@ -407,15 +409,33 @@ export default function BookEditorPage({
                   transition={{ duration: 0.4 }}
                   className={`w-full ${isReadThrough ? "max-w-6xl" : "max-w-5xl"}`}
                 >
-                  <SpreadEditor
-                    leftPage={currentSpread.leftPage}
-                    rightPage={currentSpread.rightPage}
-                    currentLayout={currentSpread.layout}
-                    onLayoutChange={handleLayoutChange}
-                    showTemplateSelector={!isReadThrough && showTemplateSelector}
-                    onToggleTemplateSelector={() => setShowTemplateSelector(!showTemplateSelector)}
-                    editable={!isReadThrough}
-                  />
+                  {/* First spread: Cover Spread */}
+                  {currentSpreadIndex === 0 ? (
+                    <CoverSpread
+                      bookId={bookId}
+                      bookTitle={book.title}
+                      coverDesign={book.coverDesign}
+                      rightPage={currentSpread.leftPage}
+                    />
+                  ) : /* Last spread: Back Cover Spread */
+                  currentSpreadIndex === spreads.length - 1 && spreads.length > 1 ? (
+                    <BackCoverSpread
+                      bookId={bookId}
+                      coverDesign={book.coverDesign}
+                      leftPage={currentSpread.leftPage}
+                    />
+                  ) : /* Normal content spreads */
+                  (
+                    <SpreadEditor
+                      leftPage={currentSpread.leftPage}
+                      rightPage={currentSpread.rightPage}
+                      currentLayout={currentSpread.layout}
+                      onLayoutChange={handleLayoutChange}
+                      showTemplateSelector={!isReadThrough && showTemplateSelector}
+                      onToggleTemplateSelector={() => setShowTemplateSelector(!showTemplateSelector)}
+                      editable={!isReadThrough}
+                    />
+                  )}
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -469,14 +489,20 @@ export default function BookEditorPage({
               {/* Arrow navigation + text */}
               <div className="flex items-center gap-4">
                 <button
-                  onClick={() => setCurrentSpreadIndex(Math.max(0, currentSpreadIndex - 1))}
-                  disabled={currentSpreadIndex === 0}
-                  className={`p-3 rounded-full transition-all shadow-sm ${
+                  onClick={() => {
+                    if (isMobile) {
+                      setCurrentPageIndex(Math.max(0, currentPageIndex - 1));
+                    } else {
+                      setCurrentSpreadIndex(Math.max(0, currentSpreadIndex - 1));
+                    }
+                  }}
+                  disabled={isMobile ? currentPageIndex === 0 : currentSpreadIndex === 0}
+                  className={`p-3 rounded-full transition-all shadow-sm min-h-[44px] min-w-[44px] flex items-center justify-center ${
                     isReadThrough
                       ? "bg-white hover:bg-gray-50 border-2 border-gray-300 disabled:opacity-30 disabled:cursor-not-allowed"
                       : "bg-white hover:bg-gray-50 border-2 border-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
                   }`}
-                  aria-label="Previous spread"
+                  aria-label={isMobile ? "Previous page" : "Previous spread"}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -484,18 +510,30 @@ export default function BookEditorPage({
                 </button>
 
                 <span className={`text-sm font-medium min-w-[120px] text-center ${isReadThrough ? "text-gray-800" : "text-gray-700"}`}>
-                  {isReadThrough ? `Page ${currentSpreadIndex + 1} of ${spreads.length}` : `Spread ${currentSpreadIndex + 1} of ${spreads.length}`}
+                  {/* Desktop: Show spread count, Mobile: Show page count */}
+                  <span className="hidden md:inline">
+                    {isReadThrough ? `Page ${currentSpreadIndex + 1} of ${spreads.length}` : `Spread ${currentSpreadIndex + 1} of ${spreads.length}`}
+                  </span>
+                  <span className="md:hidden">
+                    Page {currentPageIndex + 1} of {pages.length}
+                  </span>
                 </span>
 
                 <button
-                  onClick={() => setCurrentSpreadIndex(Math.min(spreads.length - 1, currentSpreadIndex + 1))}
-                  disabled={currentSpreadIndex === spreads.length - 1}
-                  className={`p-3 rounded-full transition-all shadow-sm ${
+                  onClick={() => {
+                    if (isMobile) {
+                      setCurrentPageIndex(Math.min(pages.length - 1, currentPageIndex + 1));
+                    } else {
+                      setCurrentSpreadIndex(Math.min(spreads.length - 1, currentSpreadIndex + 1));
+                    }
+                  }}
+                  disabled={isMobile ? currentPageIndex === pages.length - 1 : currentSpreadIndex === spreads.length - 1}
+                  className={`p-3 rounded-full transition-all shadow-sm min-h-[44px] min-w-[44px] flex items-center justify-center ${
                     isReadThrough
                       ? "bg-white hover:bg-gray-50 border-2 border-gray-300 disabled:opacity-30 disabled:cursor-not-allowed"
                       : "bg-white hover:bg-gray-50 border-2 border-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
                   }`}
-                  aria-label="Next spread"
+                  aria-label={isMobile ? "Next page" : "Next spread"}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -503,8 +541,8 @@ export default function BookEditorPage({
                 </button>
               </div>
 
-              {/* Dot indicators */}
-              <div className="flex items-center gap-2">
+              {/* Dot indicators - Desktop only (mobile has its own in MobilePageEditor) */}
+              <div className="hidden md:flex items-center gap-2">
                 {spreads.map((spread, index) => {
                   const isFirst = index === 0;
                   const isLast = index === spreads.length - 1;
@@ -542,7 +580,7 @@ export default function BookEditorPage({
 
               {/* Bottom actions (edit mode only) */}
               {!isReadThrough && (
-                <div className="flex items-center gap-4 mt-4">
+                <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 mt-4 w-full sm:w-auto px-4 sm:px-0">
                   <WriteMyStoryButton
                     bookTitle={book.title}
                     pages={pages as PageWithImages[]}
@@ -551,12 +589,12 @@ export default function BookEditorPage({
 
                   <button
                     onClick={handleAddSpread}
-                  className="px-6 py-3 bg-white hover:bg-gray-50 border-2 border-gray-200 hover:border-purple-300 text-gray-700 hover:text-purple-600 rounded-xl font-medium text-sm transition-all flex items-center gap-2 shadow-sm"
-                >
-                  <span>+</span>
-                  <span>Add Spread</span>
-                </button>
-              </div>
+                    className="w-full sm:w-auto px-6 py-3 bg-white hover:bg-gray-50 border-2 border-gray-200 hover:border-purple-300 text-gray-700 hover:text-purple-600 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 shadow-sm min-h-[44px]"
+                  >
+                    <span>+</span>
+                    <span>Add Spread</span>
+                  </button>
+                </div>
               )}
             </div>
           </>

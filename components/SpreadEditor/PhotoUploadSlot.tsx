@@ -32,6 +32,7 @@ interface PhotoUploadSlotProps {
   onAddText?: () => void;
   onReplace?: () => void;
   onRemove?: () => void;
+  editable?: boolean;
 }
 
 export function PhotoUploadSlot({
@@ -43,6 +44,7 @@ export function PhotoUploadSlot({
   onAddText,
   onReplace: onReplaceCallback,
   onRemove: onRemoveCallback,
+  editable = true,
 }: PhotoUploadSlotProps) {
   const { user } = useUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -291,6 +293,22 @@ export function PhotoUploadSlot({
 
   // === EMPTY STATE ===
   if (state === "empty") {
+    // Read-only mode: show empty placeholder without upload ability
+    if (!editable) {
+      return (
+        <div
+          className="block w-full h-full min-h-[200px] rounded-xl border-2 border-dashed border-gray-200 bg-gray-50"
+          style={{ aspectRatio }}
+        >
+          <div className="flex flex-col items-center justify-center h-full gap-2 p-4">
+            <span className="text-3xl opacity-30">📸</span>
+            <span className="text-sm text-gray-400">No photo</span>
+          </div>
+        </div>
+      );
+    }
+
+    // Editable mode: show upload controls
     return (
       <>
         <input
@@ -448,6 +466,23 @@ export function PhotoUploadSlot({
 
   // === COMPLETED STATE ===
   if (state === "completed" && displayImageUrl) {
+    // Read-only mode: just show the image
+    if (!editable) {
+      return (
+        <div
+          className="w-full h-full min-h-[200px] rounded-xl overflow-hidden relative shadow-sm"
+          style={{ aspectRatio }}
+        >
+          <img
+            src={displayImageUrl}
+            alt="Cartoon"
+            className="w-full h-full object-cover"
+          />
+        </div>
+      );
+    }
+
+    // Editable mode: show with hover controls
     return (
       <>
         <input

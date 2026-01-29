@@ -50,14 +50,14 @@ export function TemplateSelector({ selected, onChange }: TemplateSelectorProps) 
   return (
     <div className="flex flex-col items-center gap-4">
       <h4 className="text-sm font-semibold text-gray-700">Layout Template</h4>
-      <div className="grid grid-cols-3 gap-4 w-full max-w-2xl">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 w-full max-w-2xl">
         {TEMPLATES.map((template) => (
           <button
             key={template.id}
             onClick={() => onChange(template.id)}
-            className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+            className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all min-h-[120px] ${
               selected === template.id
-                ? "border-purple-600 bg-purple-50 shadow-lg scale-105"
+                ? "border-purple-600 bg-purple-50 shadow-lg sm:scale-105"
                 : "border-gray-200 hover:border-purple-300 hover:bg-gray-50"
             }`}
           >
