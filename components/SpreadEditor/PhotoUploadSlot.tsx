@@ -246,7 +246,19 @@ export function PhotoUploadSlot({
     }
   };
 
-  const handleReplace = () => {
+  const handleReplace = async () => {
+    // Delete the existing image first so the new upload takes its place
+    if (image && user) {
+      try {
+        await deleteImage({
+          clerkId: user.id,
+          imageId: image._id,
+        });
+      } catch (error) {
+        console.error("Failed to delete old image for replace:", error);
+        // Continue with upload anyway
+      }
+    }
     if (onReplaceCallback) {
       onReplaceCallback();
     }
@@ -254,7 +266,15 @@ export function PhotoUploadSlot({
   };
 
   const handleRemove = async () => {
-    if (!image || !user) return;
+    if (!image) {
+      console.error("handleRemove: no image");
+      return;
+    }
+    if (!user) {
+      console.error("handleRemove: no user loaded");
+      showError("Please wait — still loading your account.");
+      return;
+    }
 
     if (!showDeleteConfirm) {
       setShowDeleteConfirm(true);
@@ -262,6 +282,7 @@ export function PhotoUploadSlot({
     }
 
     try {
+      console.log("Deleting image:", image._id, "user:", user.id);
       await deleteImage({
         clerkId: user.id,
         imageId: image._id,
@@ -273,6 +294,7 @@ export function PhotoUploadSlot({
     } catch (error) {
       console.error("Failed to remove image:", error);
       showError("Failed to remove photo. Please try again.");
+      setShowDeleteConfirm(false);
     }
   };
 
