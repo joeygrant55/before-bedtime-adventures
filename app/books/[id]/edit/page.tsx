@@ -372,7 +372,7 @@ export default function BookEditorPage({
             <div className="text-6xl mb-4">📖</div>
             <h3 className="text-2xl font-bold text-gray-900 mb-2">Start Your Story</h3>
             <p className="text-gray-600 mb-6">
-              Click <span className="font-semibold text-purple-600">+ Add Spread</span> below to create your first spread!
+              Add your first spread to start building your storybook!
             </p>
             <div className="bg-white rounded-xl p-4 text-left max-w-md mx-auto">
               <p className="text-sm text-gray-600 mb-3 font-medium">✨ How it works:</p>
@@ -394,6 +394,13 @@ export default function BookEditorPage({
                   <span>Most books need 5-10 spreads (10-20 pages)</span>
                 </li>
               </ul>
+            <button
+              onClick={handleAddSpread}
+              className="px-8 py-4 mt-6 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl font-semibold text-base transition-all shadow-md hover:shadow-lg flex items-center gap-2 min-h-[44px] mx-auto"
+            >
+              <span className="text-lg">+</span>
+              <span>Add Your First Spread</span>
+            </button>
             </div>
           </div>
         ) : currentSpread ? (
