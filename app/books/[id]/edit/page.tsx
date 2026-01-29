@@ -407,7 +407,7 @@ export default function BookEditorPage({
                   animate={isReadThrough ? { opacity: 1, x: 0 } : {}}
                   exit={isReadThrough ? { opacity: 0, x: -100 } : {}}
                   transition={{ duration: 0.4 }}
-                  className={`w-full ${isReadThrough ? "max-w-6xl" : "max-w-5xl"}`}
+                  className={`w-full mx-auto ${isReadThrough ? "max-w-6xl" : "max-w-5xl"}`}
                 >
                   {/* First spread: Cover Spread */}
                   {currentSpreadIndex === 0 ? (
