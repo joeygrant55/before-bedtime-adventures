@@ -304,6 +304,7 @@ export function PhotoUploadSlot({
         />
 
         <label
+          onClick={() => fileInputRef.current?.click()}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
