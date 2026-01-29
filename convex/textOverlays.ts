@@ -1,5 +1,17 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, MutationCtx } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
+
+/**
+ * Delete old baked image from storage before clearing/replacing bakedImageId.
+ * Prevents storage leaks from accumulating orphaned PNGs.
+ */
+async function cleanupBakedImage(ctx: MutationCtx, imageId: Id<"images">) {
+  const image = await ctx.db.get(imageId);
+  if (image?.bakedImageId) {
+    await ctx.storage.delete(image.bakedImageId);
+  }
+}
 
 // Types for text overlay
 const overlayTypeValidator = v.union(
@@ -115,6 +127,7 @@ export const create = mutation({
     });
 
     // Mark image as needing re-bake (clear baked image)
+    await cleanupBakedImage(ctx, args.imageId);
     await ctx.db.patch(args.imageId, {
       bakingStatus: undefined,
       bakedImageId: undefined,
@@ -153,6 +166,7 @@ export const update = mutation({
 
     await ctx.db.patch(overlayId, patch);
 
+    await cleanupBakedImage(ctx, overlay.imageId);
     // Mark image as needing re-bake
     await ctx.db.patch(overlay.imageId, {
       bakingStatus: undefined,
@@ -176,6 +190,7 @@ export const remove = mutation({
     await ctx.db.delete(args.overlayId);
 
     // Mark image as needing re-bake
+    await cleanupBakedImage(ctx, overlay.imageId);
     const now = Date.now();
     await ctx.db.patch(overlay.imageId, {
       bakingStatus: undefined,
@@ -200,6 +215,7 @@ export const removeAllForImage = mutation({
 
     // Mark image as needing re-bake
     const now = Date.now();
+    await cleanupBakedImage(ctx, args.imageId);
     await ctx.db.patch(args.imageId, {
       bakingStatus: undefined,
       bakedImageId: undefined,
@@ -305,6 +321,7 @@ export const createPreset = mutation({
       updatedAt: now,
     });
 
+    await cleanupBakedImage(ctx, args.imageId);
     // Mark image as needing re-bake
     await ctx.db.patch(args.imageId, {
       bakingStatus: undefined,
@@ -336,6 +353,8 @@ export const updateBakingStatus = mutation({
     };
 
     if (args.bakedImageId) {
+      // Delete the old baked image from storage to prevent leaks
+      await cleanupBakedImage(ctx, args.imageId);
       patch.bakedImageId = args.bakedImageId;
       patch.lastBakedAt = now;
     }
@@ -373,6 +392,7 @@ export const createOrUpdateStoryOverlay = mutation({
       });
 
       // Mark image as needing re-bake
+      await cleanupBakedImage(ctx, args.imageId);
       await ctx.db.patch(args.imageId, {
         bakingStatus: undefined,
         bakedImageId: undefined,
@@ -403,6 +423,7 @@ export const createOrUpdateStoryOverlay = mutation({
       });
 
       // Mark image as needing re-bake
+      await cleanupBakedImage(ctx, args.imageId);
       await ctx.db.patch(args.imageId, {
         bakingStatus: undefined,
         bakedImageId: undefined,
