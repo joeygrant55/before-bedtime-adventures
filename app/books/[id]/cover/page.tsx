@@ -166,7 +166,7 @@ export default function CoverDesignerPage({
           // For now we use the index to select from existing images
         },
       });
-      router.push(`/books/${bookId}/preview`);
+      router.push(`/books/${bookId}/edit`);
     } catch (error) {
       console.error("Failed to save cover design:", error);
     } finally {

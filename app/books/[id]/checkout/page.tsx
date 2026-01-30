@@ -292,13 +292,13 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <Link
-            href={`/books/${bookId}/preview`}
+            href={`/books/${bookId}/edit`}
             className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 rounded-lg p-1"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            <span>Back to Preview</span>
+            <span>Back to Edit</span>
           </Link>
           <div className="flex items-center gap-2 text-green-400" aria-label="Secure checkout">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
