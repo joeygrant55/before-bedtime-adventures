@@ -63,10 +63,13 @@ export async function POST(request: Request) {
         try {
           // Update order status to payment_received
           const webhookToken = process.env.CONVEX_WEBHOOK_TOKEN;
+          console.log(`[WEBHOOK] Processing order ${orderId}, token exists: ${!!webhookToken}, session: ${session.id}`);
+          
           if (!webhookToken) {
             throw new Error("CONVEX_WEBHOOK_TOKEN is not configured");
           }
 
+          console.log(`[WEBHOOK] Calling Convex mutation for order ${orderId}...`);
           await convex.mutation(api.orders.webhookUpdateOrderStatus, {
             webhookToken,
             orderId,
@@ -92,8 +95,11 @@ export async function POST(request: Request) {
             });
 
         } catch (error) {
-          console.error("Failed to update order status:", error);
+          console.error(`❌ Failed to update order ${orderId}:`, error);
+          console.error(`Error details:`, JSON.stringify(error, null, 2));
         }
+      } else {
+        console.log(`⚠️ Checkout completed but no orderId in metadata:`, session.id);
       }
       break;
     }
