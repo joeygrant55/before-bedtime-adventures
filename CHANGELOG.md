@@ -2,6 +2,14 @@
 
 All notable changes to Before Bedtime Adventures will be documented in this file.
 
+## [1.0.2] - 2026-01-30
+
+### Changed
+- Updated Stripe webhook configuration for production deployment
+- Refreshed webhook signing secret in Vercel environment variables
+
+---
+
 ## [1.0.1] - 2025-12-09
 
 ### Changed
