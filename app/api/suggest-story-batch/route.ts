@@ -11,7 +11,7 @@ const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { bookTitle, pageCount, context } = body;
+    const { bookTitle, pageCount, context, style = 'classic' } = body;
 
     if (!bookTitle) {
       return NextResponse.json(
@@ -27,13 +27,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Style-specific guidelines
+    const styleGuides: Record<string, string> = {
+      classic: `- Each caption should be 1-2 simple sentences
+- Use warm, whimsical language appropriate for a children's bedtime story
+- Think classic storybook style: "We had so much fun at the beach!"`,
+      
+      rhyming: `- Each caption should be 2-4 lines of rhyming verse
+- Make it playful and rhythmic, like Dr. Seuss
+- Example: "We jumped and played beneath the sun, / Our beach adventure had begun!"`,
+      
+      adventure: `- Each caption should be 1-2 exciting, action-packed sentences
+- Use dynamic verbs and vivid descriptions
+- Example: "We raced down the sandy hill, whooping with joy!"`,
+      
+      educational: `- Each caption should be 1-2 sentences that teach something
+- Weave in fun facts naturally
+- Example: "We spotted a hermit crab! Did you know they find empty shells to use as homes?"`,
+    };
+
     // Generate story captions based on book title and page count (text-only, no image analysis)
     const prompt = `You are a children's storybook author. I need you to write a warm, engaging story for a family photo book titled "${bookTitle}" with ${pageCount} pages.
 
+STORY STYLE: ${style}
+${styleGuides[style] || styleGuides.classic}
+
 Guidelines:
 - Write EXACTLY ${pageCount} captions, one for each page
-- Each caption should be 1-2 sentences (under 150 characters)
-- Use warm, whimsical language appropriate for a children's bedtime story
+- Age-appropriate for 4-8 year olds
 - Create a narrative arc: beginning → middle → end
 - Use the child's perspective when possible
 - Make it feel magical, loving, and adventurous
@@ -41,10 +62,10 @@ Guidelines:
 
 Return your response as a JSON array of strings, one caption for each page, in order. Only return the JSON array, nothing else.
 
-Example format for a 6-page book:
+Example format for a 6-page book (classic style):
 ["Once upon a time, our adventure began...", "We discovered magical new places.", "Every moment was filled with wonder.", "Together we laughed and played.", "We made memories to treasure forever.", "And they lived happily ever after."]
 
-Now generate ${pageCount} captions for "${bookTitle}":`;
+Now generate ${pageCount} captions in ${style} style for "${bookTitle}":`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;

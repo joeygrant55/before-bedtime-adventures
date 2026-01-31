@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { suggestStoryText } from "@/lib/gemini/story-suggest";
+import { suggestStoryText, type StoryStyle } from "@/lib/gemini/story-suggest";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { imageDescription, pageNumber, totalPages, locationName, bookTitle, previousPageText } = body;
+    const { imageDescription, pageNumber, totalPages, locationName, bookTitle, previousPageText, style } = body;
 
     if (!bookTitle || pageNumber === undefined || totalPages === undefined) {
       return NextResponse.json(
@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
         locationName,
         bookTitle,
         previousPageText,
+        style: (style as StoryStyle) || 'classic',
       }
     );
 

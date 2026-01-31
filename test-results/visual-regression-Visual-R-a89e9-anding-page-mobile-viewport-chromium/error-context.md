@@ -1,0 +1,113 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - navigation [ref=e3]:
+      - generic [ref=e4]:
+        - link "Before Bedtime Adventures" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img "Before Bedtime Adventures" [ref=e6]
+        - button "Get Started" [ref=e8]
+    - main [ref=e9]:
+      - generic [ref=e12]:
+        - heading "Turn your photos into magical storybooks" [level=1] [ref=e13]
+        - paragraph [ref=e14]: Upload vacation photos, watch AI transform them into Disney-style illustrations, and get a premium hardcover book delivered to your door.
+        - generic [ref=e15]:
+          - button "Create Your Book" [ref=e16]
+          - button "Try it free" [ref=e17]
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - heading "See the magic in action" [level=2] [ref=e22]
+          - paragraph [ref=e23]: Drop any photo to see it transformed — no account needed
+        - generic [ref=e26] [cursor=pointer]:
+          - button "Choose File" [ref=e27]
+          - img [ref=e29]
+          - paragraph [ref=e31]: Drop your photo here
+          - paragraph [ref=e32]: or click to browse • JPEG, PNG up to 10MB
+      - generic [ref=e34]:
+        - heading "How it works" [level=2] [ref=e35]
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - img [ref=e39]
+            - heading "Upload photos" [level=3] [ref=e41]
+            - paragraph [ref=e42]: Select 10-20 of your favorite vacation or family photos.
+          - generic [ref=e43]:
+            - img [ref=e45]
+            - heading "AI transforms them" [level=3] [ref=e47]
+            - paragraph [ref=e48]: Watch as each photo becomes a Disney-style illustration.
+          - generic [ref=e49]:
+            - img [ref=e51]
+            - heading "Get your book" [level=3] [ref=e53]
+            - paragraph [ref=e54]: Receive a premium 8.5" hardcover in 5-7 days.
+      - generic [ref=e57]:
+        - generic [ref=e59]: ⭐⭐⭐⭐⭐
+        - heading "Join hundreds of families creating magical memories" [level=2] [ref=e60]
+        - paragraph [ref=e61]: Transform your vacation photos into beautiful Disney-style storybooks that your kids will treasure forever.
+        - generic [ref=e62]:
+          - generic [ref=e63]:
+            - generic [ref=e64]: ⭐⭐⭐⭐⭐
+            - paragraph [ref=e65]: "\"My kids flip through their vacation book every night! The Disney-style illustrations made our ordinary photos magical.\""
+            - generic [ref=e66]:
+              - paragraph [ref=e67]: Sarah M.
+              - paragraph [ref=e68]: Seattle, WA
+          - generic [ref=e69]:
+            - generic [ref=e70]: ⭐⭐⭐⭐⭐
+            - paragraph [ref=e71]: "\"Worth every penny. The quality is incredible and it arrived faster than expected. Already working on our second book!\""
+            - generic [ref=e72]:
+              - paragraph [ref=e73]: Michael T.
+              - paragraph [ref=e74]: Austin, TX
+          - generic [ref=e75]:
+            - generic [ref=e76]: ⭐⭐⭐⭐⭐
+            - paragraph [ref=e77]: "\"The perfect keepsake for our family trip. Grandma cried when she saw it! So much better than a photo album.\""
+            - generic [ref=e78]:
+              - paragraph [ref=e79]: Jessica L.
+              - paragraph [ref=e80]: Boston, MA
+      - generic [ref=e83]:
+        - generic [ref=e84]:
+          - generic [ref=e85]: ✨
+          - text: Most Popular
+        - heading "Premium Hardcover Book" [level=2] [ref=e86]
+        - paragraph [ref=e87]: Everything you need
+        - generic [ref=e88]:
+          - text: $49.99
+          - paragraph [ref=e89]: + shipping
+        - list [ref=e90]:
+          - listitem [ref=e91]:
+            - img [ref=e92]
+            - text: Up to 20 AI-transformed pages
+          - listitem [ref=e94]:
+            - img [ref=e95]
+            - text: 8.5" × 8.5" premium hardcover
+          - listitem [ref=e97]:
+            - img [ref=e98]
+            - text: Ships worldwide in 5-7 days
+          - listitem [ref=e100]:
+            - img [ref=e101]
+            - text: 100% satisfaction guaranteed
+        - button "Get Started" [ref=e103]
+        - paragraph [ref=e104]: Free to start • Pay when you order
+      - generic [ref=e106]:
+        - paragraph [ref=e107]: Trusted printing partner
+        - paragraph [ref=e108]:
+          - text: Printed & shipped by
+          - link "Lulu" [ref=e109] [cursor=pointer]:
+            - /url: https://www.lulu.com
+          - text: — millions of books delivered worldwide
+    - contentinfo [ref=e110]:
+      - generic [ref=e112]:
+        - generic [ref=e113]:
+          - generic [ref=e114]: 📚
+          - generic [ref=e115]: © 2026 Before Bedtime Adventures
+        - generic [ref=e116]:
+          - link "Contact" [ref=e117] [cursor=pointer]:
+            - /url: mailto:hello@beforebedtimeadventures.com
+          - link "Privacy" [ref=e118] [cursor=pointer]:
+            - /url: /privacy
+          - link "Terms" [ref=e119] [cursor=pointer]:
+            - /url: /terms
+  - region "Notifications"
+  - button "Open Next.js Dev Tools" [ref=e125] [cursor=pointer]:
+    - img [ref=e126]
+  - alert [ref=e129]
+```
