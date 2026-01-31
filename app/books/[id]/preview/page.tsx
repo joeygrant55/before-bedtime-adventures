@@ -147,23 +147,22 @@ export default function BookPreviewPage({ params }: { params: Promise<{ id: stri
                           )}
                         </div>
 
-                        {/* Text Overlay */}
+                        {/* Story Text */}
                         <div className="flex flex-col justify-center">
-                          {page.textOverlay ? (
+                          {page.storyText ? (
                             <div className="space-y-2">
-                              <p className="text-sm text-gray-400 uppercase tracking-wide">Text Overlay:</p>
-                              <p
-                                className="text-2xl font-bold leading-relaxed"
-                                style={{
-                                  color: page.textOverlay.color || "#FFFFFF",
-                                  fontFamily: page.textOverlay.fontFamily || "inherit",
-                                }}
-                              >
-                                {page.textOverlay.text}
+                              <p className="text-sm text-gray-400 uppercase tracking-wide">Story:</p>
+                              <p className="text-lg text-white/90 leading-relaxed">
+                                {page.storyText}
                               </p>
                             </div>
+                          ) : page.title ? (
+                            <div className="space-y-2">
+                              <p className="text-sm text-gray-400 uppercase tracking-wide">Location:</p>
+                              <p className="text-2xl font-bold text-white">{page.title}</p>
+                            </div>
                           ) : (
-                            <p className="text-gray-500 italic">No text overlay</p>
+                            <p className="text-gray-500 italic">No story text</p>
                           )}
                         </div>
                       </div>
