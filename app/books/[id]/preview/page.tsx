@@ -31,7 +31,7 @@ export default function BookPreviewPage({ params }: { params: Promise<{ id: stri
   }
 
   // Check if book is ready
-  const isReadyToOrder = book.status === "ready_to_order" || book.status === "ordered";
+  const isReadyToOrder = book.status === "ready_to_print" || book.status === "ordered";
   const allPagesComplete = pages?.every(p => 
     p.images.some(img => img.cartoonUrl && img.status === "completed")
   );
