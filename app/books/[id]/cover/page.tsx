@@ -268,10 +268,18 @@ export default function CoverDesignerPage({
               <h2 className="text-lg font-semibold text-white mb-4">Preview</h2>
               <div className={`aspect-square max-w-md mx-auto rounded-2xl overflow-hidden shadow-2xl bg-gradient-to-br ${selectedTheme.colors.primary} p-8`}>
                 {/* Cover Preview */}
-                <div className="h-full flex flex-col items-center justify-center text-center">
+                <div className={`h-full flex flex-col items-center text-center ${
+                  textPosition === 'top' ? 'justify-start pt-8' :
+                  textPosition === 'center' ? 'justify-center' :
+                  'justify-end pb-8'
+                }`}>
                   {/* Hero Image */}
                   {currentHeroImage ? (
-                    <div className="w-48 h-48 rounded-xl overflow-hidden mb-6 shadow-lg border-4 border-white/20">
+                    <div className={`w-48 h-48 rounded-xl overflow-hidden shadow-lg border-4 border-white/20 ${
+                      textPosition === 'top' ? 'order-2 mt-6' :
+                      textPosition === 'center' ? 'order-1 mb-6' :
+                      'order-1 mb-6'
+                    }`}>
                       <img
                         src={currentHeroImage}
                         alt="Cover hero"
@@ -279,25 +287,50 @@ export default function CoverDesignerPage({
                       />
                     </div>
                   ) : (
-                    <div className="w-48 h-48 rounded-xl mb-6 border-4 border-dashed border-white/30 flex items-center justify-center">
+                    <div className={`w-48 h-48 rounded-xl border-4 border-dashed border-white/30 flex items-center justify-center ${
+                      textPosition === 'top' ? 'order-2 mt-6' :
+                      textPosition === 'center' ? 'order-1 mb-6' :
+                      'order-1 mb-6'
+                    }`}>
                       <p className="text-white/50 text-sm text-center px-4">Upload or select a cover image</p>
                     </div>
                   )}
 
-                  {/* Title */}
-                  <h1 className="text-2xl md:text-3xl font-bold text-white mb-2 drop-shadow-lg">
-                    {title || book.title}
-                  </h1>
+                  {/* Text Content */}
+                  <div className={textPosition === 'top' ? 'order-1' : 'order-2'}>
+                    {/* Title */}
+                    <h1
+                      className="font-bold drop-shadow-lg mb-2"
+                      style={{
+                        fontFamily: FONTS.find(f => f.id === titleFont)?.css || FONTS[1].css,
+                        fontSize: `${1 + titleSize * 0.4}rem`,
+                        color: titleColor,
+                        lineHeight: '1.2',
+                      }}
+                    >
+                      {title || book.title}
+                    </h1>
 
-                  {/* Subtitle */}
-                  {subtitle && (
-                    <p className={`text-lg ${selectedTheme.colors.accent} mb-4`}>{subtitle}</p>
-                  )}
+                    {/* Subtitle */}
+                    {subtitle && (
+                      <p
+                        className="mb-4"
+                        style={{
+                          fontFamily: FONTS.find(f => f.id === subtitleFont)?.css || FONTS[3].css,
+                          fontSize: `${0.8 + subtitleSize * 0.2}rem`,
+                          color: subtitleColor,
+                          lineHeight: '1.3',
+                        }}
+                      >
+                        {subtitle}
+                      </p>
+                    )}
 
-                  {/* Author Line */}
-                  {authorLine && (
-                    <p className="text-white/70 text-sm mt-auto">{authorLine}</p>
-                  )}
+                    {/* Author Line */}
+                    {authorLine && (
+                      <p className="text-white/70 text-sm mt-4">{authorLine}</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -388,6 +421,191 @@ export default function CoverDesignerPage({
                 rows={3}
                 className="w-full bg-slate-800/50 border border-purple-500/30 rounded-lg px-4 py-3 text-white placeholder-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
               />
+            </div>
+
+            {/* Typography Controls */}
+            <div className="bg-slate-800/30 border border-purple-500/20 rounded-xl p-5 space-y-5">
+              <h3 className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
+                <span>✍️</span>
+                Typography
+              </h3>
+
+              {/* Title Font */}
+              <div>
+                <label className="block text-purple-300 text-sm font-medium mb-2">Title Font</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {FONTS.map((font) => (
+                    <button
+                      key={font.id}
+                      onClick={() => setTitleFont(font.id)}
+                      className={`p-3 rounded-lg border-2 transition-all text-left ${
+                        titleFont === font.id
+                          ? "border-purple-500 bg-purple-500/20 shadow-lg"
+                          : "border-purple-500/20 hover:border-purple-500/50 bg-slate-800/50"
+                      }`}
+                    >
+                      <p className="text-white text-sm font-medium" style={{ fontFamily: font.css }}>
+                        {font.name}
+                      </p>
+                      <p className="text-purple-400/70 text-xs mt-1">{font.style}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Title Size */}
+              <div>
+                <label className="block text-purple-300 text-sm font-medium mb-2">
+                  Title Size: <span className="text-white">{titleSize}</span>
+                </label>
+                <input
+                  type="range"
+                  min="1"
+                  max="5"
+                  value={titleSize}
+                  onChange={(e) => setTitleSize(parseInt(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                />
+                <div className="flex justify-between text-purple-400/50 text-xs mt-1">
+                  <span>Small</span>
+                  <span>Large</span>
+                </div>
+              </div>
+
+              {/* Title Color */}
+              <div>
+                <label className="block text-purple-300 text-sm font-medium mb-2">Title Color</label>
+                <div className="flex gap-2 flex-wrap">
+                  {COLOR_PRESETS.map((color) => (
+                    <button
+                      key={color.value}
+                      onClick={() => setTitleColor(color.value)}
+                      className={`w-12 h-12 rounded-lg border-2 transition-all ${
+                        titleColor === color.value
+                          ? "border-purple-500 ring-2 ring-purple-500/50 scale-110"
+                          : "border-purple-500/20 hover:border-purple-500/50"
+                      }`}
+                      style={{ backgroundColor: color.value }}
+                      title={color.name}
+                    />
+                  ))}
+                  {/* Custom color picker */}
+                  <label className="relative">
+                    <input
+                      type="color"
+                      value={titleColor}
+                      onChange={(e) => setTitleColor(e.target.value)}
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                    />
+                    <div className={`w-12 h-12 rounded-lg border-2 flex items-center justify-center transition-all ${
+                      !COLOR_PRESETS.some(c => c.value === titleColor)
+                        ? "border-purple-500 ring-2 ring-purple-500/50"
+                        : "border-purple-500/20 hover:border-purple-500/50"
+                    }`} style={{ backgroundColor: titleColor }}>
+                      <span className="text-white text-xs font-bold drop-shadow">+</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Subtitle Font */}
+              <div>
+                <label className="block text-purple-300 text-sm font-medium mb-2">Subtitle Font</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {FONTS.map((font) => (
+                    <button
+                      key={font.id}
+                      onClick={() => setSubtitleFont(font.id)}
+                      className={`p-3 rounded-lg border-2 transition-all text-left ${
+                        subtitleFont === font.id
+                          ? "border-purple-500 bg-purple-500/20 shadow-lg"
+                          : "border-purple-500/20 hover:border-purple-500/50 bg-slate-800/50"
+                      }`}
+                    >
+                      <p className="text-white text-sm font-medium" style={{ fontFamily: font.css }}>
+                        {font.name}
+                      </p>
+                      <p className="text-purple-400/70 text-xs mt-1">{font.style}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Subtitle Size */}
+              <div>
+                <label className="block text-purple-300 text-sm font-medium mb-2">
+                  Subtitle Size: <span className="text-white">{subtitleSize}</span>
+                </label>
+                <input
+                  type="range"
+                  min="1"
+                  max="5"
+                  value={subtitleSize}
+                  onChange={(e) => setSubtitleSize(parseInt(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                />
+                <div className="flex justify-between text-purple-400/50 text-xs mt-1">
+                  <span>Small</span>
+                  <span>Large</span>
+                </div>
+              </div>
+
+              {/* Subtitle Color */}
+              <div>
+                <label className="block text-purple-300 text-sm font-medium mb-2">Subtitle Color</label>
+                <div className="flex gap-2 flex-wrap">
+                  {COLOR_PRESETS.map((color) => (
+                    <button
+                      key={color.value}
+                      onClick={() => setSubtitleColor(color.value)}
+                      className={`w-12 h-12 rounded-lg border-2 transition-all ${
+                        subtitleColor === color.value
+                          ? "border-purple-500 ring-2 ring-purple-500/50 scale-110"
+                          : "border-purple-500/20 hover:border-purple-500/50"
+                      }`}
+                      style={{ backgroundColor: color.value }}
+                      title={color.name}
+                    />
+                  ))}
+                  {/* Custom color picker */}
+                  <label className="relative">
+                    <input
+                      type="color"
+                      value={subtitleColor}
+                      onChange={(e) => setSubtitleColor(e.target.value)}
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                    />
+                    <div className={`w-12 h-12 rounded-lg border-2 flex items-center justify-center transition-all ${
+                      !COLOR_PRESETS.some(c => c.value === subtitleColor)
+                        ? "border-purple-500 ring-2 ring-purple-500/50"
+                        : "border-purple-500/20 hover:border-purple-500/50"
+                    }`} style={{ backgroundColor: subtitleColor }}>
+                      <span className="text-white text-xs font-bold drop-shadow">+</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Text Position */}
+              <div>
+                <label className="block text-purple-300 text-sm font-medium mb-2">Text Position</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {TEXT_POSITIONS.map((pos) => (
+                    <button
+                      key={pos.id}
+                      onClick={() => setTextPosition(pos.id)}
+                      className={`p-4 rounded-lg border-2 transition-all ${
+                        textPosition === pos.id
+                          ? "border-purple-500 bg-purple-500/20 shadow-lg"
+                          : "border-purple-500/20 hover:border-purple-500/50 bg-slate-800/50"
+                      }`}
+                    >
+                      <p className="text-2xl text-center mb-1">{pos.preview}</p>
+                      <p className="text-white text-sm text-center">{pos.name}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* Theme Selection */}

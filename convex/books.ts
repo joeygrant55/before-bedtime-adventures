@@ -484,6 +484,18 @@ export const updateCoverDesign = mutation({
         v.literal("forest-dreams")
       ),
       dedication: v.optional(v.string()),
+      // Typography controls
+      titleFont: v.optional(v.string()),
+      titleSize: v.optional(v.number()),
+      titleColor: v.optional(v.string()),
+      subtitleFont: v.optional(v.string()),
+      subtitleSize: v.optional(v.number()),
+      subtitleColor: v.optional(v.string()),
+      textPosition: v.optional(v.union(
+        v.literal("top"),
+        v.literal("center"),
+        v.literal("bottom")
+      )),
     }),
   },
   handler: async (ctx, args) => {
