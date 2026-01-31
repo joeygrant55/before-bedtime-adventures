@@ -17,7 +17,7 @@ export default function BookPreviewPage({ params }: { params: Promise<{ id: stri
   const router = useRouter();
   const { user } = useUser();
 
-  const book = useQuery(api.books.getBookById, { bookId });
+  const book = useQuery(api.books.getBook, { bookId });
   const pages = useQuery(api.pages.getPagesByBook, { bookId });
 
   // Loading state
