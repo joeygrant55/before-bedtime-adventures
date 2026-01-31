@@ -28,6 +28,7 @@ export default defineSchema({
       subtitle: v.optional(v.string()),
       authorLine: v.optional(v.string()),
       heroImageId: v.optional(v.id("_storage")),
+      heroImageUrl: v.optional(v.string()),
       spineImageId: v.optional(v.id("_storage")), // Small thumbnail for spine
       theme: v.union(
         v.literal("purple-magic"),
@@ -36,6 +37,18 @@ export default defineSchema({
         v.literal("forest-dreams")
       ),
       dedication: v.optional(v.string()),
+      // Typography controls
+      titleFont: v.optional(v.string()), // Font family for title
+      titleSize: v.optional(v.number()), // Font size (1-5 scale)
+      titleColor: v.optional(v.string()), // Hex color for title
+      subtitleFont: v.optional(v.string()),
+      subtitleSize: v.optional(v.number()),
+      subtitleColor: v.optional(v.string()),
+      textPosition: v.optional(v.union(
+        v.literal("top"),
+        v.literal("center"),
+        v.literal("bottom")
+      )), // Vertical position of text
     })),
 
     // === PRINT FIELDS (NEW) ===
