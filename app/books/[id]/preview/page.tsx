@@ -33,7 +33,7 @@ export default function BookPreviewPage({ params }: { params: Promise<{ id: stri
   // Check if book is ready
   const isReadyToOrder = book.status === "ready_to_print" || book.status === "ordered";
   const allPagesComplete = pages?.every(p => 
-    p.images.some(img => img.cartoonUrl && img.status === "completed")
+    p.images.some(img => img.cartoonUrl)
   );
 
   return (
@@ -108,7 +108,7 @@ export default function BookPreviewPage({ params }: { params: Promise<{ id: stri
             <div className="space-y-8">
               {pages.map((page, index) => {
                 const completedImage = page.images.find(
-                  img => img.cartoonUrl && img.status === "completed"
+                  img => img.cartoonUrl
                 );
 
                 return (
