@@ -42,6 +42,30 @@ const THEMES: { id: CoverTheme; name: string; colors: { primary: string; seconda
   },
 ];
 
+// Curated fonts optimized for storybook covers
+const FONTS = [
+  { id: "playfair", name: "Playfair Display", css: "'Playfair Display', serif", style: "Classic & Elegant" },
+  { id: "fredoka", name: "Fredoka", css: "'Fredoka', sans-serif", style: "Playful & Friendly" },
+  { id: "chewy", name: "Chewy", css: "'Chewy', cursive", style: "Fun & Bubbly" },
+  { id: "poppins", name: "Poppins", css: "'Poppins', sans-serif", style: "Modern & Clean" },
+  { id: "lora", name: "Lora", css: "'Lora', serif", style: "Warm & Readable" },
+];
+
+const TEXT_POSITIONS = [
+  { id: "top", name: "Top", preview: "↑" },
+  { id: "center", name: "Center", preview: "•" },
+  { id: "bottom", name: "Bottom", preview: "↓" },
+] as const;
+
+const COLOR_PRESETS = [
+  { name: "White", value: "#FFFFFF" },
+  { name: "Cream", value: "#FFF8DC" },
+  { name: "Gold", value: "#FFD700" },
+  { name: "Pink", value: "#FFB6C1" },
+  { name: "Sky Blue", value: "#87CEEB" },
+  { name: "Mint", value: "#98FF98" },
+];
+
 export default function CoverDesignerPage({
   params,
 }: {
@@ -67,6 +91,15 @@ export default function CoverDesignerPage({
   const [customCoverImage, setCustomCoverImage] = useState<string | null>(null);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  
+  // Typography controls
+  const [titleFont, setTitleFont] = useState("fredoka");
+  const [titleSize, setTitleSize] = useState(3); // 1-5 scale
+  const [titleColor, setTitleColor] = useState("#FFFFFF");
+  const [subtitleFont, setSubtitleFont] = useState("poppins");
+  const [subtitleSize, setSubtitleSize] = useState(2);
+  const [subtitleColor, setSubtitleColor] = useState("#FFF8DC");
+  const [textPosition, setTextPosition] = useState<"top" | "center" | "bottom">("bottom");
 
   // Initialize form with existing cover design or book title
   useEffect(() => {
@@ -77,6 +110,14 @@ export default function CoverDesignerPage({
         setAuthorLine(book.coverDesign.authorLine || "");
         setTheme(book.coverDesign.theme);
         setDedication(book.coverDesign.dedication || "");
+        // Load typography settings (with defaults if not set)
+        setTitleFont(book.coverDesign.titleFont || "fredoka");
+        setTitleSize(book.coverDesign.titleSize || 3);
+        setTitleColor(book.coverDesign.titleColor || "#FFFFFF");
+        setSubtitleFont(book.coverDesign.subtitleFont || "poppins");
+        setSubtitleSize(book.coverDesign.subtitleSize || 2);
+        setSubtitleColor(book.coverDesign.subtitleColor || "#FFF8DC");
+        setTextPosition(book.coverDesign.textPosition || "bottom");
       } else {
         setTitle(book.title);
       }
@@ -162,6 +203,14 @@ export default function CoverDesignerPage({
           authorLine: authorLine || undefined,
           theme,
           dedication: dedication || undefined,
+          // Typography settings
+          titleFont,
+          titleSize,
+          titleColor,
+          subtitleFont,
+          subtitleSize,
+          subtitleColor,
+          textPosition,
           // Note: heroImageId would require storing the selected image to storage
           // For now we use the index to select from existing images
         },
