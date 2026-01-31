@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { navigateToCoverDesigner, setupMockRoutes } from './fixtures/mock-routes';
 
 /**
  * Cover Designer Typography Tests
@@ -9,15 +10,17 @@ import { test, expect } from '@playwright/test';
  * - Color pickers
  * - Position selector
  * - Live preview updates
+ * 
+ * Uses mocked Convex API responses for fast, isolated testing.
  */
 
 test.describe('Cover Designer Typography Controls', () => {
   test.beforeEach(async ({ page }) => {
-    // TODO: Replace with actual test book ID or create one via API
-    await page.goto('http://localhost:3000/books/test-book-id/cover');
+    // Setup mocked routes and navigate to cover designer
+    await navigateToCoverDesigner(page);
     
     // Wait for cover designer to load
-    await page.waitForSelector('text=Design Your Cover');
+    await page.waitForSelector('text=Design Your Cover', { timeout: 10000 });
   });
 
   test('should render all 5 font options', async ({ page }) => {
@@ -60,7 +63,7 @@ test.describe('Cover Designer Typography Controls', () => {
       
       // Screenshot each font
       await page.screenshot({ 
-        path: `screenshots/typography-font-${font.name.toLowerCase().replace(/\\s/g, '-')}.png` 
+        path: `screenshots/typography-font-${font.name.toLowerCase().replace(/\s/g, '-')}.png` 
       });
     }
   });
@@ -126,7 +129,7 @@ test.describe('Cover Designer Typography Controls', () => {
       
       // Screenshot each color
       await page.screenshot({ 
-        path: `screenshots/typography-color-${color.name.toLowerCase().replace(/\\s/g, '-')}.png` 
+        path: `screenshots/typography-color-${color.name.toLowerCase().replace(/\s/g, '-')}.png` 
       });
     }
   });
@@ -155,7 +158,7 @@ test.describe('Cover Designer Typography Controls', () => {
     await page.getByRole('button', { name: /save/i }).click();
     
     // Should navigate away (to edit page or preview)
-    await page.waitForURL(/\\/books\\/.*\\/(edit|preview)/);
+    await page.waitForURL(/\/books\/.*\/(edit|preview)/);
     
     // TODO: Verify settings were saved by navigating back
   });
@@ -206,7 +209,7 @@ test.describe('Cover Designer Typography Controls', () => {
 
 test.describe('Cover Designer Integration', () => {
   test('should maintain typography settings during page refresh', async ({ page }) => {
-    await page.goto('http://localhost:3000/books/test-book-id/cover');
+    await navigateToCoverDesigner(page);
     
     // Set specific typography
     await page.getByText('Fredoka').click();
