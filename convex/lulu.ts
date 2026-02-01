@@ -58,7 +58,7 @@ interface LuluPrintJobRequest {
   contact_email: string;
   external_id: string;
   shipping_address: LuluShippingAddress;
-  shipping_option_level: "MAIL" | "GROUND" | "EXPEDITED" | "EXPRESS";
+  shipping_option_level: "MAIL" | "GROUND_HD" | "GROUND_BUS" | "PRIORITY_MAIL" | "EXPRESS";
   line_items: LuluLineItem[];
 }
 
@@ -188,7 +188,7 @@ export const submitPrintJob = action({
           country_code: order.shippingAddress.countryCode,
           phone_number: order.shippingAddress.phoneNumber,
         },
-        shipping_option_level: "GROUND", // Free shipping = Ground
+        shipping_option_level: "MAIL", // Cheapest shipping = MAIL
         line_items: [
           {
             external_id: order.bookId,
@@ -373,7 +373,7 @@ export const getShippingEstimate = action({
         quantity: "1",
         postal_code: args.postalCode,
         country_code: args.countryCode,
-        level: "GROUND",
+        level: "MAIL",
       });
 
       const response = await fetch(`${baseUrl}/print-shipping-options/?${params}`, {
@@ -391,10 +391,10 @@ export const getShippingEstimate = action({
 
       // Extract cost from response
       if (data.results && data.results.length > 0) {
-        const groundOption = data.results.find(
-          (opt: { level: string }) => opt.level === "GROUND"
+        const mailOption = data.results.find(
+          (opt: { level: string }) => opt.level === "MAIL"
         );
-        if (groundOption) {
+        if (mailOption) {
           return {
             cost: parseFloat(groundOption.total_cost_excl_tax),
             currency: groundOption.currency,
