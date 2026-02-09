@@ -396,8 +396,8 @@ export const getShippingEstimate = action({
         );
         if (mailOption) {
           return {
-            cost: parseFloat(groundOption.total_cost_excl_tax),
-            currency: groundOption.currency,
+            cost: parseFloat(mailOption.total_cost_excl_tax),
+            currency: mailOption.currency,
           };
         }
       }
