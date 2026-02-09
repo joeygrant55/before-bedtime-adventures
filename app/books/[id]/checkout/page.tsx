@@ -731,15 +731,38 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
               </div>
             )}
 
-            {/* Money Back Guarantee */}
-            <div className="mt-6 p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl" aria-hidden="true">✨</span>
-                <div>
-                  <p className="text-green-200 font-medium">100% Satisfaction Guarantee</p>
-                  <p className="text-green-300/80 text-sm">
-                    Not happy with your book? Contact us for a full refund.
-                  </p>
+            {/* Trust Badges */}
+            <div className="mt-6 space-y-3">
+              <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl" aria-hidden="true">✨</span>
+                  <div>
+                    <p className="text-green-200 font-medium">100% Satisfaction Guarantee</p>
+                    <p className="text-green-300/80 text-sm">
+                      Not happy with your book? Contact us for a full refund.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="flex flex-col items-center gap-1.5 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                  <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  <span className="text-xs text-gray-400 text-center">Secure Checkout</span>
+                </div>
+                <div className="flex flex-col items-center gap-1.5 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                  <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                  </svg>
+                  <span className="text-xs text-gray-400 text-center">Premium Quality</span>
+                </div>
+                <div className="flex flex-col items-center gap-1.5 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                  <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                  <span className="text-xs text-gray-400 text-center">Lulu Printed</span>
                 </div>
               </div>
             </div>

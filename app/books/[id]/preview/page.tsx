@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState, useEffect } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -43,6 +43,16 @@ export default function BookPreviewPage({ params }: { params: Promise<{ id: stri
 
   // Check if book is ready
   const isReadyToOrder = book.status === "ready_to_print" || book.status === "ordered";
+
+  // Sticky CTA on scroll
+  const [showStickyCTA, setShowStickyCTA] = useState(false);
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowStickyCTA(window.scrollY > 300);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -218,6 +228,24 @@ export default function BookPreviewPage({ params }: { params: Promise<{ id: stri
           </div>
         )}
       </div>
+
+      {/* Sticky Bottom CTA */}
+      {isReadyToOrder && showStickyCTA && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-gray-200 shadow-lg">
+          <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-lg font-bold text-gray-900">$49.99</span>
+              <span className="text-sm text-gray-500">Premium Hardcover • Free US Shipping</span>
+            </div>
+            <Link
+              href={`/books/${bookId}/checkout`}
+              className="px-6 py-2.5 rounded-lg font-semibold transition-all bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-sm"
+            >
+              Order Now →
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

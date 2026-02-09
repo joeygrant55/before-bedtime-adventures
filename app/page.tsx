@@ -607,6 +607,17 @@ export default function Home() {
               <p className="text-gray-400 text-sm mt-4">
                 Free to start • Pay when you order
               </p>
+
+              {/* Urgency + Trust Badges */}
+              <div className="mt-6 space-y-3">
+                <div className="inline-flex items-center gap-2 bg-green-50 text-green-700 text-sm font-medium px-4 py-2 rounded-full">
+                  <span>🚚</span> Free US Shipping — Limited Time
+                </div>
+                <p className="text-gray-500 text-sm flex items-center justify-center gap-1.5">
+                  <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.68.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
+                  100% Money-Back Guarantee
+                </p>
+              </div>
             </motion.div>
           </div>
         </section>
@@ -627,6 +638,41 @@ export default function Home() {
           </div>
         </section>
       </main>
+
+        {/* FAQ */}
+        <section className="px-4 sm:px-6 py-16 sm:py-20 bg-gray-50">
+          <div className="max-w-2xl mx-auto">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 text-center mb-10">
+              Frequently asked questions
+            </h2>
+            <div className="space-y-4">
+              {[
+                {
+                  q: "How long does it take to get my book?",
+                  a: "Creating your book takes just minutes. Once ordered, printing and shipping typically takes 5-7 business days within the US, and 7-14 days internationally."
+                },
+                {
+                  q: "What photo quality do I need?",
+                  a: "Regular smartphone photos work great! We recommend images at least 1MB in size for the best print quality. JPEG and PNG formats are supported."
+                },
+                {
+                  q: "Can I edit my book after creating it?",
+                  a: "Yes! You can rearrange pages, update the story text, and swap photos anytime before placing your order. Once ordered, the book goes to print."
+                }
+              ].map((faq, i) => (
+                <details key={i} className="group bg-white rounded-xl border border-gray-100 overflow-hidden">
+                  <summary className="flex items-center justify-between cursor-pointer px-6 py-4 font-medium text-gray-900 hover:bg-gray-50 transition-colors">
+                    {faq.q}
+                    <svg className="w-5 h-5 text-gray-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </summary>
+                  <p className="px-6 pb-4 text-gray-600">{faq.a}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
 
       {/* Footer */}
       <footer className="border-t border-gray-100">
