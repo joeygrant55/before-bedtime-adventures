@@ -34,7 +34,6 @@ export async function createTestBook(): Promise<Id<"books">> {
     testBookId = await client.mutation(api.books.createBook, {
       clerkId: testUserId,
       title: 'Playwright Test Book',
-      description: 'A test book for automated testing',
     });
 
     // Add some test pages
