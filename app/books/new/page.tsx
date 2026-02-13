@@ -210,7 +210,7 @@ function NewBookContent() {
               />
               <FieldError error={formErrors.title} id="title-error" />
               <p className="text-center text-sm text-gray-500 mt-2">
-                💡 Most storybooks have 10-20 pages
+                💡 Each spread you add = ~2 printed pages. Most books end up 24-40 pages.
               </p>
             </motion.div>
 

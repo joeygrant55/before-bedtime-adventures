@@ -134,3 +134,16 @@ export const FONT_SIZES = {
 } as const;
 
 export type FontSize = keyof typeof FONT_SIZES;
+
+/**
+ * Calculate the total printed page count from the number of "stops" (user-created pages/spreads).
+ * Each stop becomes 2 printed pages (image + text/second image).
+ * Front/back matter is added for padding.
+ * Lulu hardcover minimum is 24 pages.
+ */
+export function calculatePrintedPageCount(stopCount: number): number {
+  const storyPages = stopCount * 2;
+  const frontMatter = stopCount <= 9 ? 4 : 2;
+  const backMatter = stopCount <= 9 ? 4 : 2;
+  return Math.max(PAGE_LIMITS.minimum, frontMatter + storyPages + backMatter);
+}

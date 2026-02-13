@@ -8,6 +8,7 @@ import { Id, Doc } from "@/convex/_generated/dataModel";
 import { SpreadEditor, CoverSpread, BackCoverSpread } from "@/components/SpreadEditor";
 import { MobilePageEditor } from "@/components/SpreadEditor/MobilePageEditor";
 import { WriteMyStoryButton } from "@/components/WriteMyStoryButton";
+import { calculatePrintedPageCount } from "@/lib/print-specs";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -601,6 +602,13 @@ export default function BookEditorPage({
                     <span>+</span>
                     <span>Add Spread</span>
                   </button>
+
+                  {/* Page count info */}
+                  {pages && pages.length > 0 && (
+                    <span className="text-xs text-gray-400 text-center sm:text-left">
+                      {pages.length} {pages.length === 1 ? "spread" : "spreads"} → ~{calculatePrintedPageCount(pages.length)} page book
+                    </span>
+                  )}
                 </div>
               )}
             </div>

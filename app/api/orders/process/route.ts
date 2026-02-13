@@ -1,20 +1,18 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 
 /**
- * Manual order processing endpoint
+ * Manual order processing endpoint (authenticated)
  * 
  * POST /api/orders/process
  * Body: { orderId: string }
  * 
  * This endpoint is useful for:
- * - Testing the order flow without Stripe webhooks
  * - Retrying failed orders
  * - Admin operations
- * 
- * In production, protect this with authentication!
  */
 
 function getConvex() {
@@ -27,6 +25,15 @@ function getConvex() {
 
 export async function POST(request: Request) {
   try {
+    // Require authentication
+    const { userId: clerkId } = await auth();
+    if (!clerkId) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { orderId } = body;
 

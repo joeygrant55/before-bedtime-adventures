@@ -4,7 +4,7 @@ import { use, useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id, Doc } from "@/convex/_generated/dataModel";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,6 +14,7 @@ import { trackCheckoutStarted, trackCheckoutAddressEntered, trackOrderCreated } 
 import { FullPageSkeleton, CheckoutFormSkeleton, InlineSpinner } from "@/components/ui/Skeleton";
 import { ErrorBoundary, ApiError, FieldError } from "@/components/ui/ErrorBoundary";
 import { BookNotFoundEmpty } from "@/components/ui/EmptyStates";
+import { calculatePrintedPageCount } from "@/lib/print-specs";
 
 type ImageWithUrls = Doc<"images"> & {
   originalUrl: string | null;
@@ -54,8 +55,16 @@ const STATE_OPTIONS = Object.entries(US_STATES).map(([code, name]) => ({
 
 function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useUser();
-  const { success, error: showError } = useToast();
+  const { success, error: showError, info } = useToast();
+
+  // Show toast if returning from canceled Stripe checkout
+  useEffect(() => {
+    if (searchParams.get("canceled") === "true") {
+      info("Payment was canceled. You can try again when you're ready.");
+    }
+  }, [searchParams, info]);
 
   const book = useQuery(api.books.getBook, { bookId });
   const pages = useQuery(api.pages.getBookPages, { bookId });
@@ -272,11 +281,7 @@ function CheckoutContent({ bookId }: { bookId: Id<"books"> }) {
     .find((img) => img?.cartoonUrl)?.cartoonUrl;
 
   // Calculate printed page count
-  const stopCount = book.pageCount;
-  const storyPages = stopCount * 2;
-  const frontMatter = stopCount <= 9 ? 4 : 2;
-  const backMatter = stopCount <= 9 ? 4 : 2;
-  const printedPageCount = Math.max(24, frontMatter + storyPages + backMatter);
+  const printedPageCount = calculatePrintedPageCount(book.pageCount);
 
   const hasErrors = Object.keys(formErrors).some(key => formErrors[key as keyof FormErrors]);
 
