@@ -12,6 +12,8 @@ import { calculatePrintedPageCount } from "@/lib/print-specs";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { useToast } from "@/components/ui/Toast";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
 type ImageWithUrls = Doc<"images"> & {
   originalUrl: string | null;
@@ -50,7 +52,7 @@ function groupPagesIntoSpreads(pages: PageWithImages[]): Spread[] {
   return spreads;
 }
 
-export default function BookEditorPage({
+function BookEditorContent({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -60,6 +62,7 @@ export default function BookEditorPage({
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useUser();
+  const { error: showError } = useToast();
 
   // Mode: edit (default) or readthrough
   const mode = searchParams.get("mode") === "readthrough" ? "readthrough" : "edit";
@@ -195,12 +198,16 @@ export default function BookEditorPage({
       return;
     }
     
-    if (editedTitle.trim() !== book.title) {
-      await updateBookTitle({
-        clerkId: user.id,
-        bookId,
-        title: editedTitle.trim(),
-      });
+    try {
+      if (editedTitle.trim() !== book.title) {
+        await updateBookTitle({
+          clerkId: user.id,
+          bookId,
+          title: editedTitle.trim(),
+        });
+      }
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to save title");
     }
     setIsEditingTitle(false);
   };
@@ -213,13 +220,17 @@ export default function BookEditorPage({
   // Handle add spread
   const handleAddSpread = async () => {
     if (!user) return;
-    await addSpread({
-      clerkId: user.id,
-      bookId,
-      spreadLayout: "duo", // Default
-    });
-    // Navigate to the new spread
-    setCurrentSpreadIndex(spreads.length);
+    try {
+      await addSpread({
+        clerkId: user.id,
+        bookId,
+        spreadLayout: "duo", // Default
+      });
+      // Navigate to the new spread
+      setCurrentSpreadIndex(spreads.length);
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to add spread");
+    }
   };
 
   // Handle delete spread
@@ -232,15 +243,19 @@ export default function BookEditorPage({
       return;
     }
 
-    // Delete both pages in the spread
-    await removePage({ clerkId: user.id, pageId: spread.leftPage._id });
-    if (spread.rightPage) {
-      await removePage({ clerkId: user.id, pageId: spread.rightPage._id });
-    }
+    try {
+      // Delete both pages in the spread
+      await removePage({ clerkId: user.id, pageId: spread.leftPage._id });
+      if (spread.rightPage) {
+        await removePage({ clerkId: user.id, pageId: spread.rightPage._id });
+      }
 
-    // Navigate to previous spread if needed
-    if (currentSpreadIndex >= spreads.length - 1 && currentSpreadIndex > 0) {
-      setCurrentSpreadIndex(currentSpreadIndex - 1);
+      // Navigate to previous spread if needed
+      if (currentSpreadIndex >= spreads.length - 1 && currentSpreadIndex > 0) {
+        setCurrentSpreadIndex(currentSpreadIndex - 1);
+      }
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to delete spread");
     }
   };
 
@@ -604,9 +619,9 @@ export default function BookEditorPage({
                   </button>
 
                   {/* Page count info */}
-                  {pages && pages.length > 0 && (
+                  {spreads.length > 0 && (
                     <span className="text-xs text-gray-400 text-center sm:text-left">
-                      {pages.length} {pages.length === 1 ? "spread" : "spreads"} → ~{calculatePrintedPageCount(pages.length)} page book
+                      {spreads.length} {spreads.length === 1 ? "spread" : "spreads"} → ~{calculatePrintedPageCount(spreads.length)} printed pages
                     </span>
                   )}
                 </div>
@@ -616,5 +631,33 @@ export default function BookEditorPage({
         ) : null}
       </main>
     </div>
+  );
+}
+
+export default function BookEditorPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  return (
+    <ErrorBoundary
+      fallback={
+        <div className="min-h-screen bg-white flex items-center justify-center">
+          <div className="text-center p-8">
+            <div className="text-5xl mb-4">😵</div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Something went wrong</h2>
+            <p className="text-gray-500 mb-6">We couldn&apos;t load the editor</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-xl transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      }
+    >
+      <BookEditorContent params={params} />
+    </ErrorBoundary>
   );
 }

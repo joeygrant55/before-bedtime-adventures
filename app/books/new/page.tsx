@@ -210,7 +210,7 @@ function NewBookContent() {
               />
               <FieldError error={formErrors.title} id="title-error" />
               <p className="text-center text-sm text-gray-500 mt-2">
-                💡 Each spread you add = ~2 printed pages. Most books end up 24-40 pages.
+                💡 Each stop becomes a 2-page spread. Most books have 5-15 stops (24-34 printed pages).
               </p>
             </motion.div>
 
