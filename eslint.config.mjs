@@ -8,6 +8,9 @@ export default [
       "no-case-declarations": "warn",
       "react/no-unescaped-entities": "off",
       "react-hooks/rules-of-hooks": "warn",
+      "react-hooks/purity": "warn",
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/set-state-in-render": "warn",
     },
   },
 ];
