@@ -7,7 +7,7 @@ _Target: Soft launch to Friends & Family_
 
 ## 🔴 Blockers (Must-Have Before Launch)
 
-- [x] **Clerk production key** — Confirmed working in production (Feb 20, 2026).
+- [ ] **Clerk production key** — Still on `pk_test_` (confirmed by `noreply@accounts.dev` email sender). Need to promote Clerk instance to production at dashboard.clerk.com, then update `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` + `CLERK_SECRET_KEY` in Vercel.
 - [ ] **F&F list** — Names + emails of people to invite for beta.
 - [ ] **Lulu test order** — Place one real test order (~$50-60) to validate the full print pipeline end-to-end before inviting others.
 
