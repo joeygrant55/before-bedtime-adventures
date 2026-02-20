@@ -7,7 +7,7 @@ _Target: Soft launch to Friends & Family_
 
 ## 🔴 Blockers (Must-Have Before Launch)
 
-- [ ] **Clerk production key** — Swap `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` from `pk_test_` to `pk_live_` in Vercel environment variables. Also update `CLERK_SECRET_KEY`.
+- [x] **Clerk production key** — Confirmed working in production (Feb 20, 2026).
 - [ ] **F&F list** — Names + emails of people to invite for beta.
 - [ ] **Lulu test order** — Place one real test order (~$50-60) to validate the full print pipeline end-to-end before inviting others.
 
