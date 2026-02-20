@@ -409,3 +409,23 @@ export const getUserOrders = query({
       .sort((a, b) => b.createdAt - a.createdAt);
   },
 });
+
+// Get order by Stripe session ID - used on checkout success page
+export const getOrderByStripeSession = query({
+  args: { stripeSessionId: v.string() },
+  handler: async (ctx, args) => {
+    const order = await ctx.db
+      .query("printOrders")
+      .filter((q) => q.eq(q.field("stripeSessionId"), args.stripeSessionId))
+      .first();
+
+    if (!order) return null;
+
+    const book = await ctx.db.get(order.bookId);
+
+    return {
+      ...order,
+      book: book ? { _id: book._id, title: book.title } : null,
+    };
+  },
+});

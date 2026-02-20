@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -12,36 +12,27 @@ import { trackCheckoutCompleted, trackFunnelStep } from "@/lib/analytics";
 function CheckoutSuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
-  const [isLoading, setIsLoading] = useState(true);
   const hasTracked = useRef(false);
 
-  // TODO: Replace with real query when backend is ready
-  // const order = useQuery(api.orders.getByStripeSession, { sessionId });
-
-  // Simulate loading for demo
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1500);
-    return () => clearTimeout(timer);
-  }, []);
+  // Real query — look up order by Stripe session ID
+  const order = useQuery(
+    api.orders.getOrderByStripeSession,
+    sessionId ? { stripeSessionId: sessionId } : "skip"
+  );
+  const isLoading = order === undefined;
 
   // Track checkout completed (only once per session)
   useEffect(() => {
-    if (!isLoading && sessionId && !hasTracked.current) {
+    if (!isLoading && sessionId && order && !hasTracked.current) {
       hasTracked.current = true;
-      // Track completion with session ID as placeholder for order/book IDs
-      // In production, you'd get these from the order query
-      trackCheckoutCompleted(sessionId, sessionId, 4999);
-      trackFunnelStep("purchase_complete", { sessionId });
+      trackCheckoutCompleted(
+        sessionId,
+        order.book?._id ?? sessionId,
+        order.price
+      );
+      trackFunnelStep("purchase_complete", { sessionId, orderId: order._id });
     }
-  }, [isLoading, sessionId]);
-
-  // Mock order data
-  const mockOrder = {
-    _id: "mock-order-123",
-    status: "payment_received" as const,
-    bookTitle: "Our Amazing Disney Adventure",
-    price: 4999,
-  };
+  }, [isLoading, sessionId, order]);
 
   if (isLoading) {
     return (
@@ -78,7 +69,13 @@ function CheckoutSuccessContent() {
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 mb-8 text-left">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold text-gray-900">Order Summary</h2>
-            <OrderStatusBadge status={mockOrder.status} compact />
+            {order && (
+              <OrderStatusBadge
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                status={order.status as any}
+                compact
+              />
+            )}
           </div>
 
           <div className="flex items-center gap-4 py-4 border-t border-gray-100">
@@ -87,19 +84,19 @@ function CheckoutSuccessContent() {
             </div>
             <div className="flex-1">
               <p className="font-semibold text-gray-900">
-                {mockOrder.bookTitle}
+                {order?.book?.title ?? "Your Storybook"}
               </p>
               <p className="text-sm text-gray-500">Hardcover • 8.5" x 8.5"</p>
             </div>
             <p className="font-bold text-gray-900">
-              ${(mockOrder.price / 100).toFixed(2)}
+              ${((order?.price ?? 4999) / 100).toFixed(2)}
             </p>
           </div>
 
           <div className="pt-4 border-t border-gray-100">
             <div className="flex justify-between text-sm text-gray-600 mb-2">
               <span>Subtotal</span>
-              <span>${(mockOrder.price / 100).toFixed(2)}</span>
+              <span>${((order?.price ?? 4999) / 100).toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-sm text-gray-600 mb-2">
               <span>Shipping</span>
@@ -107,7 +104,7 @@ function CheckoutSuccessContent() {
             </div>
             <div className="flex justify-between font-bold text-gray-900 pt-2 border-t border-gray-100">
               <span>Total</span>
-              <span>${(mockOrder.price / 100).toFixed(2)}</span>
+              <span>${((order?.price ?? 4999) / 100).toFixed(2)}</span>
             </div>
           </div>
         </div>
@@ -146,7 +143,7 @@ function CheckoutSuccessContent() {
         {/* Action Buttons */}
         <div className="space-y-3">
           <Link
-            href={`/orders/${mockOrder._id}`}
+            href={order ? `/orders/${order._id}` : "/dashboard"}
             className="block w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-4 rounded-xl transition-all hover:shadow-lg"
           >
             Track Your Order
