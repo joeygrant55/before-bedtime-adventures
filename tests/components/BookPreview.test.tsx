@@ -107,7 +107,8 @@ describe("BookPreview", () => {
         onBackClick={mockOnBackClick}
       />
     );
-    expect(screen.getByText("$49.99")).toBeInTheDocument();
+    // Button text is "Order — $49.99"
+    expect(screen.getByText(/\$49\.99/)).toBeInTheDocument();
   });
 
   it("calls onOrderClick when order button is clicked", () => {
@@ -119,7 +120,8 @@ describe("BookPreview", () => {
         onBackClick={mockOnBackClick}
       />
     );
-    const orderButton = screen.getByText("$49.99").closest("button");
+    // Button text is "Order — $49.99"
+    const orderButton = screen.getByText(/Order.*\$49\.99/).closest("button");
     fireEvent.click(orderButton!);
     expect(mockOnOrderClick).toHaveBeenCalledTimes(1);
   });
@@ -133,8 +135,10 @@ describe("BookPreview", () => {
         onBackClick={mockOnBackClick}
       />
     );
-    const backButton = screen.getByText("←").closest("button");
-    fireEvent.click(backButton!);
+    // Back button uses an SVG arrow — it's the first button in the header
+    const headerButtons = screen.getAllByRole("button");
+    const backButton = headerButtons[0]; // back arrow is first button when onBackClick is set
+    fireEvent.click(backButton);
     expect(mockOnBackClick).toHaveBeenCalledTimes(1);
   });
 
@@ -146,7 +150,9 @@ describe("BookPreview", () => {
         onOrderClick={mockOnOrderClick}
       />
     );
-    expect(screen.getByText(`${mockPages.length} pages`)).toBeInTheDocument();
+    // "2 pages" appears in both the cover and the footer nav
+    const pageCountElements = screen.getAllByText(`${mockPages.length} pages`);
+    expect(pageCountElements.length).toBeGreaterThan(0);
   });
 
   it("shows cover initially", () => {
@@ -160,7 +166,7 @@ describe("BookPreview", () => {
     expect(screen.getByText("Cover")).toBeInTheDocument();
   });
 
-  it("shows click to open hint on cover", () => {
+  it("shows open hint on cover", () => {
     render(
       <BookPreview
         book={mockBook}
@@ -168,8 +174,8 @@ describe("BookPreview", () => {
         onOrderClick={mockOnOrderClick}
       />
     );
-    // Desktop shows "Click to open"
-    expect(screen.getByText("Click to open")).toBeInTheDocument();
+    // Cover shows "Tap to open" (component uses consistent label)
+    expect(screen.getByText(/tap to open/i)).toBeInTheDocument();
   });
 
   it("renders navigation buttons", () => {
@@ -220,10 +226,10 @@ describe("BookPreview", () => {
     const nextButton = screen.getByRole("button", { name: /Next/i });
     fireEvent.click(nextButton);
     
-    // Wait for animation
+    // Wait for animation — component uses en-dash "–" not hyphen
     await waitFor(
       () => {
-        expect(screen.getByText("Pages 1-2")).toBeInTheDocument();
+        expect(screen.getByText(/Pages 1.2/)).toBeInTheDocument();
       },
       { timeout: 1000 }
     );
@@ -264,7 +270,9 @@ describe("BookPreview", () => {
         onOrderClick={mockOnOrderClick}
       />
     );
-    expect(screen.getByText("0 pages")).toBeInTheDocument();
+    // "0 pages" appears in multiple places (cover + footer); just check at least one exists
+    const pageCountElements = screen.getAllByText("0 pages");
+    expect(pageCountElements.length).toBeGreaterThan(0);
   });
 });
 
