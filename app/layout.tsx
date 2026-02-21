@@ -6,16 +6,53 @@ import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Before Bedtime Adventures",
-  description: "Turn your vacation photos into magical children's storybooks",
+  metadataBase: new URL("https://before-bedtime-adventures.vercel.app"),
+  title: {
+    default: "Before Bedtime Adventures",
+    template: "%s | Before Bedtime Adventures",
+  },
+  description:
+    "Turn your family vacation photos into Disney-style illustrated hardcover storybooks. Upload photos, AI transforms them into magical illustrations, and we print and ship a premium 8.5\" hardcover to your door.",
+  keywords: [
+    "children's storybook",
+    "personalized photo book",
+    "AI illustrated book",
+    "vacation photo book",
+    "custom kids book",
+    "Disney style illustrations",
+    "family memory book",
+    "hardcover photo book",
+  ],
   icons: {
     icon: "/favicon.png",
     apple: "/apple-touch-icon.png",
   },
   openGraph: {
-    title: "Before Bedtime Adventures",
-    description: "Turn your vacation photos into magical children's storybooks",
+    type: "website",
+    url: "https://before-bedtime-adventures.vercel.app",
+    title: "Before Bedtime Adventures — Turn Photos Into Storybooks",
+    description:
+      "Upload your vacation photos. AI transforms them into Disney-style illustrations. We print and ship a premium hardcover book to your door. $49.99, US shipping included.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Before Bedtime Adventures — Turn Photos Into Magical Storybooks",
+      },
+    ],
+    siteName: "Before Bedtime Adventures",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Before Bedtime Adventures — Turn Photos Into Storybooks",
+    description:
+      "Upload vacation photos. AI transforms them into Disney-style illustrations. Premium hardcover shipped to your door. $49.99.",
     images: ["/og-image.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 
