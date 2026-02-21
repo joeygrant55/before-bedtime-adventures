@@ -570,14 +570,14 @@ export default function Home() {
               <div className="mb-8">
                 <span className="text-5xl font-bold text-gray-900">$49</span>
                 <span className="text-2xl font-bold text-gray-900">.99</span>
-                <p className="text-gray-500 text-sm mt-1">+ shipping</p>
+                <p className="text-gray-500 text-sm mt-1">Shipping included (US)</p>
               </div>
 
               <ul className="text-left space-y-3 mb-8">
                 {[
                   "Up to 20 AI-transformed pages",
                   "8.5\" × 8.5\" premium hardcover",
-                  "Ships worldwide in 5-7 days",
+                  "Ships in ~10-14 days (US only)",
                   "100% satisfaction guaranteed"
                 ].map((item, i) => (
                   <li key={i} className="flex items-center gap-3 text-gray-700">

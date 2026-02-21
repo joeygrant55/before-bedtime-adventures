@@ -30,7 +30,7 @@ _Target: Soft launch to Friends & Family_
 
 - [ ] Custom domain (currently on `before-bedtime-adventures.vercel.app`)
 - [ ] Onboarding email copy (welcome + "your book is printing" emails)
-- [ ] Landing page copywriting polish
+- [x] Landing page copy — fixed "+ shipping" lie → "Shipping included (US)" and "Ships worldwide" → "Ships in ~10-14 days (US only)" (Feb 21)
 - [ ] Error tracking (Sentry or similar)
 - [ ] Analytics baseline (Vercel Analytics is already installed)
 
@@ -48,9 +48,9 @@ _Target: Soft launch to Friends & Family_
 
 ## 💰 Pricing (as configured)
 
-- Book price: **$44.99** (includes ground shipping, US only)
+- Book price: **$49.99** (includes ground shipping, US only)
 - Lulu cost: ~$20-25 (varies by page count)
-- Margin: ~$20/book at launch
+- Margin: ~$25-30/book at launch
 
 ---
 
