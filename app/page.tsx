@@ -471,7 +471,7 @@ export default function Home() {
                     </svg>
                   ),
                   title: "Get your book",
-                  desc: "Receive a premium 8.5\" hardcover in 5-7 days."
+                  desc: "Receive a premium 8.5\" hardcover in ~10-14 days (US only)."
                 }
               ].map((item, i) => (
                 <motion.div
