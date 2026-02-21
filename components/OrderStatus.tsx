@@ -1,12 +1,13 @@
 "use client";
 
-// Order status types matching schema
+// Order status types — must match convex/schema.ts printOrders.status union
 export type OrderStatusType =
   | "pending_payment"
   | "payment_received"
-  | "generating_pdf"
-  | "submitted_to_lulu"
-  | "printing"
+  | "generating_pdfs"
+  | "submitting_to_lulu"
+  | "submitted"
+  | "in_production"
   | "shipped"
   | "delivered"
   | "failed";
@@ -33,21 +34,27 @@ const STATUS_CONFIG: Record<
     color: "text-green-700",
     bgColor: "bg-green-100",
   },
-  generating_pdf: {
+  generating_pdfs: {
     label: "Creating Your Book",
     icon: "📄",
     color: "text-blue-700",
     bgColor: "bg-blue-100",
   },
-  submitted_to_lulu: {
-    label: "Sent to Printer",
+  submitting_to_lulu: {
+    label: "Submitting to Printer",
     icon: "📤",
     color: "text-purple-700",
     bgColor: "bg-purple-100",
   },
-  printing: {
-    label: "Printing",
+  submitted: {
+    label: "Sent to Printer",
     icon: "🖨️",
+    color: "text-purple-700",
+    bgColor: "bg-purple-100",
+  },
+  in_production: {
+    label: "Printing",
+    icon: "📖",
     color: "text-indigo-700",
     bgColor: "bg-indigo-100",
   },
@@ -71,12 +78,13 @@ const STATUS_CONFIG: Record<
   },
 };
 
-// Progress steps for the timeline
+// Progress steps for the timeline — matches schema status flow
 const PROGRESS_STEPS: OrderStatusType[] = [
   "payment_received",
-  "generating_pdf",
-  "submitted_to_lulu",
-  "printing",
+  "generating_pdfs",
+  "submitting_to_lulu",
+  "submitted",
+  "in_production",
   "shipped",
   "delivered",
 ];
@@ -116,11 +124,13 @@ function getStatusDescription(status: OrderStatusType): string {
       return "Complete your payment to start the printing process";
     case "payment_received":
       return "Thank you! We're preparing your book";
-    case "generating_pdf":
+    case "generating_pdfs":
       return "Creating a print-ready version of your book";
-    case "submitted_to_lulu":
+    case "submitting_to_lulu":
+      return "Sending your book to our print partner";
+    case "submitted":
       return "Your book has been sent to our print partner";
-    case "printing":
+    case "in_production":
       return "Your book is being printed with care";
     case "shipped":
       return "Your book is on its way to you!";
@@ -132,7 +142,6 @@ function getStatusDescription(status: OrderStatusType): string {
 }
 
 export function OrderStatusTimeline({ status }: { status: OrderStatusType }) {
-  // Find current step index
   const currentIndex = PROGRESS_STEPS.indexOf(status);
   const isFailed = status === "failed";
   const isPending = status === "pending_payment";
@@ -223,7 +232,7 @@ export function OrderStatusCard({
         )}
 
         {/* Estimated delivery */}
-        {estimatedDelivery && ["printing", "shipped"].includes(status) && (
+        {estimatedDelivery && ["in_production", "shipped"].includes(status) && (
           <div className="mt-4 p-4 bg-purple-50 rounded-xl">
             <p className="text-sm text-purple-700 font-medium">
               Estimated Delivery

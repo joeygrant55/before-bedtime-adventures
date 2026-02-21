@@ -15,22 +15,28 @@ describe("OrderStatusBadge", () => {
     expect(screen.getByText("✅")).toBeInTheDocument();
   });
 
-  it("renders generating pdf status", () => {
-    render(<OrderStatusBadge status="generating_pdf" />);
+  it("renders generating pdfs status", () => {
+    render(<OrderStatusBadge status="generating_pdfs" />);
     expect(screen.getByText("Creating Your Book")).toBeInTheDocument();
     expect(screen.getByText("📄")).toBeInTheDocument();
   });
 
-  it("renders submitted to lulu status", () => {
-    render(<OrderStatusBadge status="submitted_to_lulu" />);
-    expect(screen.getByText("Sent to Printer")).toBeInTheDocument();
+  it("renders submitting to lulu status", () => {
+    render(<OrderStatusBadge status="submitting_to_lulu" />);
+    expect(screen.getByText("Submitting to Printer")).toBeInTheDocument();
     expect(screen.getByText("📤")).toBeInTheDocument();
   });
 
-  it("renders printing status", () => {
-    render(<OrderStatusBadge status="printing" />);
-    expect(screen.getByText("Printing")).toBeInTheDocument();
+  it("renders submitted status", () => {
+    render(<OrderStatusBadge status="submitted" />);
+    expect(screen.getByText("Sent to Printer")).toBeInTheDocument();
     expect(screen.getByText("🖨️")).toBeInTheDocument();
+  });
+
+  it("renders in_production status", () => {
+    render(<OrderStatusBadge status="in_production" />);
+    expect(screen.getByText("Printing")).toBeInTheDocument();
+    expect(screen.getByText("📖")).toBeInTheDocument();
   });
 
   it("renders shipped status", () => {
@@ -78,7 +84,7 @@ describe("OrderStatusTimeline", () => {
   });
 
   it("highlights current step", () => {
-    render(<OrderStatusTimeline status="printing" />);
+    render(<OrderStatusTimeline status="in_production" />);
     // The "Printing" label should be present
     expect(screen.getByText("Printing")).toBeInTheDocument();
   });
@@ -104,7 +110,7 @@ describe("OrderStatusCard", () => {
   it("does not show tracking when not shipped", () => {
     render(
       <OrderStatusCard
-        status="printing"
+        status="in_production"
         trackingNumber="1Z999AA10123456784"
       />
     );
@@ -114,7 +120,7 @@ describe("OrderStatusCard", () => {
   it("shows estimated delivery when printing or shipped", () => {
     render(
       <OrderStatusCard
-        status="printing"
+        status="in_production"
         estimatedDelivery="January 15, 2025"
       />
     );

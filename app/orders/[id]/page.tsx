@@ -10,11 +10,13 @@ import { motion } from "framer-motion";
 import { useSearchParams } from "next/navigation";
 import { trackOrderStatusViewed } from "@/lib/analytics";
 
+// Status keys must match convex/schema.ts printOrders.status union exactly
 const statusSteps = [
   { key: "payment_received", label: "Payment Confirmed", icon: "💳" },
-  { key: "generating_pdf", label: "Creating Your Book", icon: "🎨" },
-  { key: "submitted_to_lulu", label: "Sent to Printer", icon: "🖨️" },
-  { key: "printing", label: "Printing", icon: "📖" },
+  { key: "generating_pdfs", label: "Creating Your Book", icon: "🎨" },
+  { key: "submitting_to_lulu", label: "Submitting to Printer", icon: "📤" },
+  { key: "submitted", label: "Sent to Printer", icon: "🖨️" },
+  { key: "in_production", label: "Printing", icon: "📖" },
   { key: "shipped", label: "Shipped", icon: "📦" },
   { key: "delivered", label: "Delivered", icon: "🎉" },
 ];
@@ -264,9 +266,10 @@ export default function OrderPage({
                           {isCurrent && (
                             <p className="text-purple-300 text-sm">
                               {step.key === "payment_received" && "We've received your payment!"}
-                              {step.key === "generating_pdf" && "Creating your print-ready book..."}
-                              {step.key === "submitted_to_lulu" && "Your book has been sent to our printing partner"}
-                              {step.key === "printing" && "Your book is being printed with care"}
+                              {step.key === "generating_pdfs" && "Creating your print-ready book..."}
+                              {step.key === "submitting_to_lulu" && "Sending your book to our printing partner..."}
+                              {step.key === "submitted" && "Your book has been sent to our printing partner"}
+                              {step.key === "in_production" && "Your book is being printed with care"}
                               {step.key === "shipped" && "Your book is on its way!"}
                               {step.key === "delivered" && "Enjoy your magical storybook!"}
                             </p>

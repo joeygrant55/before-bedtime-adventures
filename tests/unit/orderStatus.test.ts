@@ -1,12 +1,13 @@
 import { describe, it, expect } from "vitest";
 
-// Order status types matching the schema
+// Order status types matching convex/schema.ts printOrders.status union exactly
 type OrderStatusType =
   | "pending_payment"
   | "payment_received"
-  | "generating_pdf"
-  | "submitted_to_lulu"
-  | "printing"
+  | "generating_pdfs"
+  | "submitting_to_lulu"
+  | "submitted"
+  | "in_production"
   | "shipped"
   | "delivered"
   | "failed";
@@ -15,19 +16,21 @@ type OrderStatusType =
 const STATUS_ORDER: Record<OrderStatusType, number> = {
   pending_payment: 0,
   payment_received: 1,
-  generating_pdf: 2,
-  submitted_to_lulu: 3,
-  printing: 4,
-  shipped: 5,
-  delivered: 6,
+  generating_pdfs: 2,
+  submitting_to_lulu: 3,
+  submitted: 4,
+  in_production: 5,
+  shipped: 6,
+  delivered: 7,
   failed: -1,
 };
 
 const PROGRESS_STEPS: OrderStatusType[] = [
   "payment_received",
-  "generating_pdf",
-  "submitted_to_lulu",
-  "printing",
+  "generating_pdfs",
+  "submitting_to_lulu",
+  "submitted",
+  "in_production",
   "shipped",
   "delivered",
 ];
@@ -67,13 +70,13 @@ describe("Order Status Helpers", () => {
   describe("isStatusComplete", () => {
     it("returns true for completed steps", () => {
       expect(isStatusComplete("shipped", "payment_received")).toBe(true);
-      expect(isStatusComplete("shipped", "printing")).toBe(true);
+      expect(isStatusComplete("shipped", "in_production")).toBe(true);
       expect(isStatusComplete("delivered", "shipped")).toBe(true);
     });
 
     it("returns false for incomplete steps", () => {
       expect(isStatusComplete("payment_received", "shipped")).toBe(false);
-      expect(isStatusComplete("printing", "delivered")).toBe(false);
+      expect(isStatusComplete("in_production", "delivered")).toBe(false);
     });
 
     it("returns false for failed status", () => {
@@ -81,7 +84,7 @@ describe("Order Status Helpers", () => {
     });
 
     it("returns true for same status", () => {
-      expect(isStatusComplete("printing", "printing")).toBe(true);
+      expect(isStatusComplete("in_production", "in_production")).toBe(true);
     });
   });
 
@@ -96,7 +99,7 @@ describe("Order Status Helpers", () => {
 
     it("returns increasing progress for each step", () => {
       const progress1 = getStatusProgress("payment_received");
-      const progress2 = getStatusProgress("printing");
+      const progress2 = getStatusProgress("in_production");
       const progress3 = getStatusProgress("delivered");
 
       expect(progress1).toBeGreaterThan(0);
@@ -116,7 +119,7 @@ describe("Order Status Helpers", () => {
 
     it("returns false for other statuses", () => {
       expect(canTrackShipment("pending_payment")).toBe(false);
-      expect(canTrackShipment("printing")).toBe(false);
+      expect(canTrackShipment("in_production")).toBe(false);
       expect(canTrackShipment("failed")).toBe(false);
     });
   });
@@ -133,7 +136,7 @@ describe("Order Status Helpers", () => {
     it("returns false for in-progress statuses", () => {
       expect(isOrderFinished("pending_payment")).toBe(false);
       expect(isOrderFinished("payment_received")).toBe(false);
-      expect(isOrderFinished("printing")).toBe(false);
+      expect(isOrderFinished("in_production")).toBe(false);
       expect(isOrderFinished("shipped")).toBe(false);
     });
   });
@@ -141,8 +144,8 @@ describe("Order Status Helpers", () => {
   describe("getNextStatus", () => {
     it("returns next status in sequence", () => {
       expect(getNextStatus("pending_payment")).toBe("payment_received");
-      expect(getNextStatus("payment_received")).toBe("generating_pdf");
-      expect(getNextStatus("printing")).toBe("shipped");
+      expect(getNextStatus("payment_received")).toBe("generating_pdfs");
+      expect(getNextStatus("in_production")).toBe("shipped");
       expect(getNextStatus("shipped")).toBe("delivered");
     });
 
