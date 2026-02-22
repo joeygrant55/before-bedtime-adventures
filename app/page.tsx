@@ -505,7 +505,7 @@ export default function Home() {
                 <span className="text-lg">⭐⭐⭐⭐⭐</span>
               </div>
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
-                Join hundreds of families creating magical memories
+                Families love Before Bedtime Adventures
               </h2>
               <p className="text-gray-600 max-w-2xl mx-auto mb-12">
                 Transform your vacation photos into beautiful Disney-style storybooks that your kids will treasure forever.

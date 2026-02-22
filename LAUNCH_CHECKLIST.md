@@ -19,7 +19,7 @@ _Target: Soft launch to Friends & Family_
 - [x] Lulu API: credentials connected
 - [x] Build: clean, no errors
 - [x] Security: hardened (headers, auth checks, webhook validation)
-- [x] Tests: 152/152 unit tests passing
+- [x] Tests: 153/153 unit tests passing
 - [x] Auto-deploy: Vercel ↔ GitHub connected
 - [x] Full purchase flow: Stripe → PDF generation → Lulu submission → order tracking
 - [x] PDF generation validated (8.5"x8.5" hardcover spec)
@@ -33,6 +33,7 @@ _Target: Soft launch to Friends & Family_
 - [x] Landing page copy — fixed "+ shipping" lie → "Shipping included (US)" and "Ships worldwide" → "Ships in ~10-14 days (US only)" (Feb 21)
 - [ ] Error tracking (Sentry or similar)
 - [ ] Analytics baseline (Vercel Analytics is already installed)
+- [ ] Replace placeholder testimonials with real F&F quotes (before public launch)
 
 ---
 
