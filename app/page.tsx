@@ -637,7 +637,6 @@ export default function Home() {
             </p>
           </div>
         </section>
-      </main>
 
         {/* FAQ */}
         <section className="px-4 sm:px-6 py-16 sm:py-20 bg-gray-50">
@@ -649,7 +648,7 @@ export default function Home() {
               {[
                 {
                   q: "How long does it take to get my book?",
-                  a: "Creating your book takes just minutes. Once ordered, printing and shipping typically takes 5-7 business days within the US, and 7-14 days internationally."
+                  a: "Creating your book takes just minutes. Once ordered, printing and shipping typically takes 10-14 days within the US. We currently ship to US addresses only."
                 },
                 {
                   q: "What photo quality do I need?",
@@ -673,6 +672,8 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+      </main>
 
       {/* Footer */}
       <footer className="border-t border-gray-100">
