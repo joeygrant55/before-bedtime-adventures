@@ -11,6 +11,10 @@ _Target: Soft launch to Friends & Family_
 - [ ] **F&F list** — Names + emails of people to invite for beta.
 - [ ] **Lulu test order** — Place one real test order (~$50-60) to validate the full print pipeline end-to-end before inviting others.
 
+## ✅ Recently Cleared
+
+- [x] **Vercel CLI auth** — Joey re-authenticated Feb 23. Deploy cmd: `cd ~/before-bedtime-adventures && vercel --prod --yes`
+
 ---
 
 ## ✅ Already Done
@@ -33,7 +37,7 @@ _Target: Soft launch to Friends & Family_
 - [x] Landing page copy — fixed "+ shipping" lie → "Shipping included (US)" and "Ships worldwide" → "Ships in ~10-14 days (US only)" (Feb 21)
 - [ ] Error tracking (Sentry or similar)
 - [ ] Analytics baseline (Vercel Analytics is already installed)
-- [ ] Replace placeholder testimonials with real F&F quotes (before public launch)
+- [x] Replaced fake placeholder testimonials with real product trust signals (Feb 26) — safe for F&F launch. Swap in real quotes when collected.
 
 ---
 

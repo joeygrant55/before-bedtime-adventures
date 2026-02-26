@@ -493,7 +493,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Social Proof */}
+        {/* Quality Promise */}
         <section className="px-6 py-16 bg-white">
           <div className="max-w-4xl mx-auto text-center">
             <motion.div
@@ -502,34 +502,35 @@ export default function Home() {
               viewport={{ once: true }}
             >
               <div className="inline-flex items-center gap-2 bg-purple-100 text-purple-700 px-4 py-2 rounded-full mb-6">
-                <span className="text-lg">⭐⭐⭐⭐⭐</span>
+                <span>✨</span>
+                <span className="text-sm font-medium">Made to last a lifetime</span>
               </div>
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
-                Families love Before Bedtime Adventures
+                A book worth keeping forever
               </h2>
               <p className="text-gray-600 max-w-2xl mx-auto mb-12">
-                Transform your vacation photos into beautiful Disney-style storybooks that your kids will treasure forever.
+                Every detail — from the AI illustrations to the hardcover binding — is designed to be something your family pulls off the shelf for years to come.
               </p>
 
-              {/* Testimonial cards */}
+              {/* Trust signal cards */}
               <div className="grid md:grid-cols-3 gap-6">
                 {[
                   {
-                    quote: "My kids flip through their vacation book every night! The Disney-style illustrations made our ordinary photos magical.",
-                    author: "Sarah M.",
-                    location: "Seattle, WA"
+                    icon: "📖",
+                    title: "Premium hardcover",
+                    body: "8.5\" × 8.5\" hardcover with full-color interior. The same print quality used by professional publishers."
                   },
                   {
-                    quote: "Worth every penny. The quality is incredible and it arrived faster than expected. Already working on our second book!",
-                    author: "Michael T.",
-                    location: "Austin, TX"
+                    icon: "🎨",
+                    title: "Disney-style illustrations",
+                    body: "Your vacation photos transformed into hand-crafted AI artwork — every character looks like it belongs in a Pixar film."
                   },
                   {
-                    quote: "The perfect keepsake for our family trip. Grandma cried when she saw it! So much better than a photo album.",
-                    author: "Jessica L.",
-                    location: "Boston, MA"
+                    icon: "🚚",
+                    title: "Delivered to your door",
+                    body: "Ships in ~10–14 days. Shipping is included in the price — no surprises at checkout."
                   }
-                ].map((testimonial, i) => (
+                ].map((card, i) => (
                   <motion.div
                     key={i}
                     initial={{ opacity: 0, y: 20 }}
@@ -538,12 +539,9 @@ export default function Home() {
                     transition={{ delay: i * 0.1 }}
                     className="bg-gray-50 rounded-2xl p-6 text-left"
                   >
-                    <div className="text-purple-600 mb-3 text-lg">⭐⭐⭐⭐⭐</div>
-                    <p className="text-gray-700 mb-4 italic">"{testimonial.quote}"</p>
-                    <div className="text-sm">
-                      <p className="font-semibold text-gray-900">{testimonial.author}</p>
-                      <p className="text-gray-500">{testimonial.location}</p>
-                    </div>
+                    <div className="text-3xl mb-3">{card.icon}</div>
+                    <h3 className="font-semibold text-gray-900 mb-2">{card.title}</h3>
+                    <p className="text-gray-600 text-sm leading-relaxed">{card.body}</p>
                   </motion.div>
                 ))}
               </div>
