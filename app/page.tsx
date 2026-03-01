@@ -655,6 +655,14 @@ export default function Home() {
                 {
                   q: "Can I edit my book after creating it?",
                   a: "Yes! You can rearrange pages, update the story text, and swap photos anytime before placing your order. Once ordered, the book goes to print."
+                },
+                {
+                  q: "Is this a good gift?",
+                  a: "It's one of the most personal gifts you can give. Parents, grandparents, and kids all love seeing their real family photos transformed into a storybook. Perfect for birthdays, holidays, Mother's Day, or just because."
+                },
+                {
+                  q: "What if I want more than 20 pages?",
+                  a: "The standard book includes up to 20 AI-transformed pages — more than enough for a complete adventure. If you have a bigger trip to capture, you can create multiple books, each featuring a different part of the journey."
                 }
               ].map((faq, i) => (
                 <details key={i} className="group bg-white rounded-xl border border-gray-100 overflow-hidden">
