@@ -37,171 +37,116 @@ export const transformToDisney = action({
         throw new Error("Could not get image from storage");
       }
 
-      // Convert blob to base64 for Gemini API
+      const falApiKey = process.env.FAL_KEY;
+      if (!falApiKey) {
+        throw new Error("FAL_KEY not configured");
+      }
+
+      // Step 1: Upload image to fal.ai storage to get a URL
+      console.log("📤 Uploading image to fal.ai storage...");
+
       const arrayBuffer = await imageBlob.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
+      const uploadResponse = await fetch("https://storage.fal.run/", {
+        method: "POST",
+        headers: {
+          "Authorization": `Key ${falApiKey}`,
+          "Content-Type": imageBlob.type || "image/jpeg",
+        },
+        body: arrayBuffer,
+      });
 
-      // Convert to base64 in chunks to avoid memory issues
-      let binaryString = '';
-      const chunkSize = 8192;
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
-        binaryString += String.fromCharCode(...chunk);
-      }
-      const base64Image = btoa(binaryString);
-
-      console.log("📦 Image converted to base64, size:", base64Image.length, "chars");
-
-      // Call Gemini 3 Pro Image API (Nano Banana Pro) to transform to Disney style
-      const geminiApiKey = process.env.GEMINI_API_KEY;
-      if (!geminiApiKey) {
-        throw new Error("GEMINI_API_KEY not configured");
+      if (!uploadResponse.ok) {
+        const uploadError = await uploadResponse.text();
+        throw new Error(`fal.ai upload failed: ${uploadError}`);
       }
 
-      const prompt = "Transform this photo into a Disney Pixar animated style illustration. Reimagine the entire scene as a frame from a Disney or Pixar animated movie — vibrant colors, smooth stylized character designs, warm cinematic lighting, and that signature hand-crafted animation aesthetic. Preserve the composition, setting, and all subjects but render everything in a beautiful cartoon illustration style.";
+      const uploadResult = await uploadResponse.json() as { url: string };
+      const imageUrl = uploadResult.url;
+      console.log("✅ Image uploaded to fal.ai:", imageUrl);
 
-      // Use Gemini image models (try newest first)
-      const models = [
-        { name: "gemini-3.1-flash-image-preview", label: "Gemini 3.1 Flash Image" },
-        { name: "gemini-3-pro-image-preview", label: "Gemini 3 Pro Image" },
-      ];
+      // Step 2: Call FLUX Kontext to transform to Disney/Pixar style
+      const prompt = "Transform into a Disney Pixar animated movie frame. Vibrant colors, smooth stylized character designs, warm cinematic lighting, that signature Disney Pixar animation aesthetic. Beautiful cartoon illustration style, same scene composition and subjects.";
 
-      let geminiResponse: Response | null = null;
-      let lastError = "";
-      let successfulModel = "";
+      console.log("🎨 Calling FLUX Kontext for Disney transformation...");
 
-      // Try each model
-      for (const model of models) {
-        console.log(`🔑 Trying ${model.label} API...`);
+      const falResponse = await fetch("https://queue.fal.run/fal-ai/flux-kontext/pro", {
+        method: "POST",
+        headers: {
+          "Authorization": `Key ${falApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          image_url: imageUrl,
+          prompt,
+          num_inference_steps: 28,
+          guidance_scale: 3.5,
+          num_images: 1,
+          output_format: "jpeg",
+        }),
+      });
 
-        // Retry configuration for rate limiting
-        const MAX_RETRIES = 2;
-        const INITIAL_DELAY_MS = 2000;
+      if (!falResponse.ok) {
+        const falError = await falResponse.text();
+        throw new Error(`fal.ai FLUX Kontext request failed: ${falError}`);
+      }
 
-        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-          if (attempt > 0) {
-            const delayMs = INITIAL_DELAY_MS * Math.pow(2, attempt - 1);
-            console.log(`⏳ Retry attempt ${attempt + 1}/${MAX_RETRIES}, waiting ${delayMs}ms...`);
-            await new Promise((resolve) => setTimeout(resolve, delayMs));
-          }
+      // fal.ai queue response — poll for result
+      const queueResult = await falResponse.json() as { request_id: string; status: string; response_url?: string };
+      console.log("⏳ fal.ai job queued:", queueResult.request_id);
 
-          geminiResponse = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model.name}:generateContent?key=${geminiApiKey}`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                contents: [{
-                  parts: [
-                    { text: prompt },
-                    {
-                      inline_data: {
-                        mime_type: imageBlob.type,
-                        data: base64Image,
-                      },
-                    },
-                  ],
-                }],
-                generationConfig: {
-                  responseModalities: ["TEXT", "IMAGE"],
-                },
-              }),
-            }
-          );
+      // Poll for completion
+      const requestId = queueResult.request_id;
+      const resultUrl = `https://queue.fal.run/fal-ai/flux-kontext/pro/requests/${requestId}`;
+      const maxPolls = 30;
+      const pollIntervalMs = 3000;
 
-          // If successful, break out of retry loop
-          if (geminiResponse.ok) {
-            console.log(`✅ ${model.label} request successful on attempt`, attempt + 1);
-            successfulModel = model.label;
-            break;
-          }
+      let resultData: { images?: Array<{ url: string; content_type: string }> } | null = null;
 
-          // Check if it's a rate limit error (429) or server error (503)
-          if (geminiResponse.status === 429 || geminiResponse.status === 503) {
-            lastError = await geminiResponse.text();
-            console.log(`⚠️ Rate limited (${geminiResponse.status}), will retry...`);
-            continue;
-          }
+      for (let i = 0; i < maxPolls; i++) {
+        await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
 
-          // For other errors, don't retry this model
-          lastError = await geminiResponse.text();
+        const pollResponse = await fetch(resultUrl, {
+          headers: { "Authorization": `Key ${falApiKey}` },
+        });
+
+        if (!pollResponse.ok) {
+          console.log(`⏳ Poll ${i + 1}: not ready yet`);
+          continue;
+        }
+
+        const pollData = await pollResponse.json() as { status?: string; images?: Array<{ url: string; content_type: string }>; error?: string };
+        console.log(`⏳ Poll ${i + 1}: status =`, pollData.status);
+
+        if (pollData.status === "COMPLETED" || pollData.images) {
+          resultData = pollData;
           break;
         }
 
-        // If successful, stop trying other models
-        if (geminiResponse?.ok) {
-          break;
+        if (pollData.status === "FAILED" || pollData.error) {
+          throw new Error(`fal.ai job failed: ${pollData.error || "Unknown error"}`);
         }
-
-        console.log(`❌ ${model.label} failed, trying next model...`);
       }
 
-      if (!geminiResponse || !geminiResponse.ok) {
-        console.error("❌ All Gemini models failed. Last error:", lastError);
-
-        // Mark as failed
-        console.log("⚠️ Marking transformation as failed");
-
-        await ctx.runMutation(api.images.updateImageStatus, {
-          imageId: args.imageId,
-          status: "failed",
-        });
-
-        return { success: false, error: lastError };
+      if (!resultData?.images?.[0]?.url) {
+        throw new Error("fal.ai job timed out or returned no image");
       }
 
-      console.log(`🎨 Using ${successfulModel} for transformation`);
+      const generatedImageUrl = resultData.images[0].url;
+      const generatedMimeType = resultData.images[0].content_type || "image/jpeg";
+      console.log("🖼️ Generated image URL:", generatedImageUrl);
 
-      const geminiResult = await geminiResponse.json();
-      console.log("✨ Gemini API response received:", JSON.stringify(geminiResult, null, 2));
-
-      // Extract generated image from response
-      // Response format: { candidates: [{ content: { parts: [{ inlineData: { data: base64, mimeType: string } }] } }] }
-      const generatedImageBase64 = geminiResult.candidates?.[0]?.content?.parts?.find(
-        (part: any) => part.inlineData
-      )?.inlineData?.data;
-
-      let cartoonImageId;
-
-      if (generatedImageBase64) {
-        console.log("🖼️ Generated image found in response!");
-
-        // Get MIME type from response
-        const generatedMimeType = geminiResult.candidates?.[0]?.content?.parts?.find(
-          (part: any) => part.inlineData
-        )?.inlineData?.mimeType || 'image/png';
-
-        console.log("📸 MIME type:", generatedMimeType);
-
-        // Convert base64 back to blob and store in Convex
-        const binaryString = atob(generatedImageBase64);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        const cartoonBlob = new Blob([bytes], { type: generatedMimeType });
-
-        console.log("💾 Storing cartoon image to Convex Storage...");
-
-        // Upload to Convex storage
-        cartoonImageId = await ctx.storage.store(cartoonBlob);
-
-        console.log("✅ Cartoon image stored! Storage ID:", cartoonImageId);
-      } else {
-        // Mark as failed if no image generated
-        const finishReason = geminiResult.candidates?.[0]?.finishReason;
-        console.log("⚠️ No generated image in response. finishReason:", finishReason);
-        console.log("🔍 Full response for debug:", JSON.stringify(geminiResult?.candidates?.[0]));
-
-        await ctx.runMutation(api.images.updateImageStatus, {
-          imageId: args.imageId,
-          status: "failed",
-        });
-
-        return { success: false, error: `No image generated. Finish reason: ${finishReason}` };
+      // Step 3: Download the generated image and store in Convex
+      const generatedImageResponse = await fetch(generatedImageUrl);
+      if (!generatedImageResponse.ok) {
+        throw new Error("Failed to download generated image from fal.ai");
       }
+
+      const generatedImageBlob = await generatedImageResponse.blob();
+      const cartoonBlob = new Blob([await generatedImageBlob.arrayBuffer()], { type: generatedMimeType });
+
+      console.log("💾 Storing cartoon image to Convex Storage...");
+      const cartoonImageId = await ctx.storage.store(cartoonBlob);
+      console.log("✅ Cartoon image stored! Storage ID:", cartoonImageId);
 
       // Update status to completed
       await ctx.runMutation(api.images.updateImageStatus, {
@@ -211,8 +156,8 @@ export const transformToDisney = action({
       });
 
       console.log("🎉 Transformation complete!");
-
       return { success: true };
+
     } catch (error) {
       console.error("Error transforming image:", error);
 
