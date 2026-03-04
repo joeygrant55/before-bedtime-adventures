@@ -30,17 +30,30 @@ export const transformToDisney = action({
     console.log("📝 Status updated to 'generating'");
 
     try {
+      // Get the original image from storage
+      const imageBlob = await ctx.storage.get(image.originalImageId);
+      if (!imageBlob) {
+        throw new Error("Could not get image from storage");
+      }
+
       const falApiKey = process.env.FAL_KEY;
       if (!falApiKey) {
         throw new Error("FAL_KEY not configured");
       }
 
-      // Step 1: Get a public URL for the image from Convex storage
-      const imageUrl = await ctx.storage.getUrl(image.originalImageId);
-      if (!imageUrl) {
-        throw new Error("Could not get public URL for image from Convex storage");
+      // Step 1: Convert image to base64 data URI for fal.ai
+      const arrayBuffer = await imageBlob.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binaryString = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+        binaryString += String.fromCharCode(...chunk);
       }
-      console.log("✅ Got Convex image URL:", imageUrl);
+      const base64Image = btoa(binaryString);
+      const mimeType = imageBlob.type || "image/jpeg";
+      const imageUrl = `data:${mimeType};base64,${base64Image}`;
+      console.log("✅ Image converted to base64 data URI, size:", base64Image.length, "chars");
 
       // Step 2: Call FLUX Kontext to transform to Disney/Pixar style
       const prompt = "Transform into a Disney Pixar animated movie frame. Vibrant colors, smooth stylized character designs, warm cinematic lighting, that signature Disney Pixar animation aesthetic. Beautiful cartoon illustration style, same scene composition and subjects.";
