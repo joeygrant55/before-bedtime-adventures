@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { action } from "./_generated/server";
 import { api } from "./_generated/api";
 
-// Action to transform an image to Disney cartoon style
+// Transform a photo to Disney/Pixar animated style using fal.ai FLUX Kontext
 export const transformToDisney = action({
   args: {
     imageId: v.id("images"),
@@ -10,65 +10,44 @@ export const transformToDisney = action({
   handler: async (ctx, args): Promise<{ success: boolean; error?: string }> => {
     console.log("🎨 Starting Disney transformation for image:", args.imageId);
 
-    // Get the image record
-    const image = await ctx.runQuery(api.images.getImage, {
-      imageId: args.imageId,
-    });
+    const image = await ctx.runQuery(api.images.getImage, { imageId: args.imageId });
+    if (!image) throw new Error("Image not found");
 
-    if (!image) {
-      throw new Error("Image not found");
-    }
-
-    console.log("✅ Image record found, original storage ID:", image.originalImageId);
-
-    // Update status to generating
     await ctx.runMutation(api.images.updateImageStatus, {
       imageId: args.imageId,
       status: "generating",
     });
 
-    console.log("📝 Status updated to 'generating'");
-
     try {
-      // Get the original image from storage
+      // Get image from Convex storage
       const imageBlob = await ctx.storage.get(image.originalImageId);
-      if (!imageBlob) {
-        throw new Error("Could not get image from storage");
-      }
+      if (!imageBlob) throw new Error("Could not get image from storage");
 
-      const falApiKey = process.env.FAL_KEY;
-      if (!falApiKey) {
-        throw new Error("FAL_KEY not configured");
-      }
-
-      // Step 1: Convert image to base64 data URI for fal.ai
+      // Convert to base64 data URI
       const arrayBuffer = await imageBlob.arrayBuffer();
       const bytes = new Uint8Array(arrayBuffer);
-      let binaryString = '';
-      const chunkSize = 8192;
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
-        binaryString += String.fromCharCode(...chunk);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i += 8192) {
+        binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + 8192, bytes.length)));
       }
-      const base64Image = btoa(binaryString);
-      const mimeType = imageBlob.type || "image/jpeg";
-      const imageUrl = `data:${mimeType};base64,${base64Image}`;
-      console.log("✅ Image converted to base64 data URI, size:", base64Image.length, "chars");
+      const base64 = btoa(binary);
+      const dataUri = `data:${imageBlob.type || "image/jpeg"};base64,${base64}`;
+      console.log("📦 Image ready, size:", base64.length, "chars");
 
-      // Step 2: Call FLUX Kontext to transform to Disney/Pixar style
-      const prompt = "Transform into a Disney Pixar animated movie frame. Vibrant colors, smooth stylized character designs, warm cinematic lighting, that signature Disney Pixar animation aesthetic. Beautiful cartoon illustration style, same scene composition and subjects.";
+      const falApiKey = process.env.FAL_KEY;
+      if (!falApiKey) throw new Error("FAL_KEY not configured");
 
-      console.log("🎨 Calling FLUX Kontext for Disney transformation...");
-
-      const falResponse = await fetch("https://queue.fal.run/fal-ai/flux-kontext/pro", {
+      // Call fal.ai FLUX Kontext sync endpoint — returns result directly, no polling
+      console.log("🎨 Calling fal.ai FLUX Kontext...");
+      const falResponse = await fetch("https://fal.run/fal-ai/flux-kontext/dev", {
         method: "POST",
         headers: {
           "Authorization": `Key ${falApiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          image_url: imageUrl,
-          prompt,
+          image_url: dataUri,
+          prompt: "Transform into a Disney Pixar animated movie illustration. Vibrant saturated colors, smooth stylized character designs, warm cinematic lighting, that signature Pixar animation aesthetic. Same scene composition and subjects, rendered as a beautiful cartoon.",
           num_inference_steps: 28,
           guidance_scale: 3.5,
           num_images: 1,
@@ -77,85 +56,38 @@ export const transformToDisney = action({
       });
 
       if (!falResponse.ok) {
-        const falError = await falResponse.text();
-        throw new Error(`fal.ai FLUX Kontext request failed: ${falError}`);
+        const err = await falResponse.text();
+        throw new Error(`fal.ai request failed (${falResponse.status}): ${err}`);
       }
 
-      // fal.ai queue response — poll for result
-      const queueResult = await falResponse.json() as { request_id: string; status: string; response_url?: string };
-      console.log("⏳ fal.ai job queued, request_id:", queueResult.request_id, "status:", queueResult.status);
+      const result = await falResponse.json() as {
+        images: Array<{ url: string; content_type: string }>;
+      };
 
-      const requestId = queueResult.request_id;
-      const statusUrl = `https://queue.fal.run/fal-ai/flux-kontext/pro/requests/${requestId}/status`;
-      const resultUrl = `https://queue.fal.run/fal-ai/flux-kontext/pro/requests/${requestId}`;
-      const maxPolls = 40;
-      const pollIntervalMs = 4000;
+      console.log("✅ fal.ai response received, images:", result.images?.length);
 
-      let completed = false;
-
-      for (let i = 0; i < maxPolls; i++) {
-        await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-
-        const statusResponse = await fetch(statusUrl, {
-          headers: { "Authorization": `Key ${falApiKey}` },
-        });
-
-        if (!statusResponse.ok) {
-          console.log(`⏳ Poll ${i + 1}: status check failed (${statusResponse.status})`);
-          continue;
-        }
-
-        const statusData = await statusResponse.json() as { status: string; error?: string };
-        console.log(`⏳ Poll ${i + 1}: status = ${statusData.status}`);
-
-        if (statusData.status === "COMPLETED") {
-          completed = true;
-          break;
-        }
-
-        if (statusData.status === "FAILED") {
-          throw new Error(`fal.ai job failed: ${statusData.error || "Unknown error"}`);
-        }
-        // IN_QUEUE or IN_PROGRESS — keep polling
+      const generatedImageUrl = result.images?.[0]?.url;
+      if (!generatedImageUrl) {
+        throw new Error("fal.ai returned no image");
       }
 
-      if (!completed) {
-        throw new Error("fal.ai job timed out after polling");
-      }
-
-      // Fetch the result
-      const resultResponse = await fetch(resultUrl, {
-        headers: { "Authorization": `Key ${falApiKey}` },
-      });
-
-      if (!resultResponse.ok) {
-        throw new Error(`Failed to fetch fal.ai result: ${resultResponse.status}`);
-      }
-
-      const resultData = await resultResponse.json() as { images?: Array<{ url: string; content_type: string }> };
-
-      if (!resultData?.images?.[0]?.url) {
-        throw new Error("fal.ai returned no image in result");
-      }
-
-      const generatedImageUrl = resultData.images[0].url;
-      const generatedMimeType = resultData.images[0].content_type || "image/jpeg";
       console.log("🖼️ Generated image URL:", generatedImageUrl);
 
-      // Step 3: Download the generated image and store in Convex
-      const generatedImageResponse = await fetch(generatedImageUrl);
-      if (!generatedImageResponse.ok) {
-        throw new Error("Failed to download generated image from fal.ai");
+      // Download generated image and store in Convex
+      const downloadResponse = await fetch(generatedImageUrl);
+      if (!downloadResponse.ok) {
+        throw new Error(`Failed to download generated image: ${downloadResponse.status}`);
       }
 
-      const generatedImageBlob = await generatedImageResponse.blob();
-      const cartoonBlob = new Blob([await generatedImageBlob.arrayBuffer()], { type: generatedMimeType });
+      const generatedBlob = new Blob(
+        [await downloadResponse.arrayBuffer()],
+        { type: result.images[0].content_type || "image/jpeg" }
+      );
 
-      console.log("💾 Storing cartoon image to Convex Storage...");
-      const cartoonImageId = await ctx.storage.store(cartoonBlob);
-      console.log("✅ Cartoon image stored! Storage ID:", cartoonImageId);
+      console.log("💾 Storing cartoon image...");
+      const cartoonImageId = await ctx.storage.store(generatedBlob);
+      console.log("✅ Stored! ID:", cartoonImageId);
 
-      // Update status to completed
       await ctx.runMutation(api.images.updateImageStatus, {
         imageId: args.imageId,
         status: "completed",
@@ -166,13 +98,11 @@ export const transformToDisney = action({
       return { success: true };
 
     } catch (error) {
-      console.error("Error transforming image:", error);
-
+      console.error("❌ Transform error:", error);
       await ctx.runMutation(api.images.updateImageStatus, {
         imageId: args.imageId,
         status: "failed",
       });
-
       throw error;
     }
   },
