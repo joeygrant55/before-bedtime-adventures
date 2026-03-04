@@ -573,12 +573,17 @@ export function PhotoUploadSlot({
             </button>
           </div>
 
-          {/* Cancel delete confirmation on mouse leave */}
+          {/* Cancel button when confirming delete */}
           {showDeleteConfirm && (
-            <div
-              className="absolute inset-0"
-              onMouseLeave={() => setShowDeleteConfirm(false)}
-            />
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDeleteConfirm(false);
+              }}
+              className="absolute top-1 left-1 bg-white/80 text-gray-600 text-xs px-2 py-1 rounded-md shadow"
+            >
+              Cancel
+            </button>
           )}
         </div>
       </>
