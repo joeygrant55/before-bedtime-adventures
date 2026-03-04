@@ -70,43 +70,59 @@ export const transformToDisney = action({
 
       // fal.ai queue response — poll for result
       const queueResult = await falResponse.json() as { request_id: string; status: string; response_url?: string };
-      console.log("⏳ fal.ai job queued:", queueResult.request_id);
+      console.log("⏳ fal.ai job queued, request_id:", queueResult.request_id, "status:", queueResult.status);
 
-      // Poll for completion
       const requestId = queueResult.request_id;
+      const statusUrl = `https://queue.fal.run/fal-ai/flux-kontext/pro/requests/${requestId}/status`;
       const resultUrl = `https://queue.fal.run/fal-ai/flux-kontext/pro/requests/${requestId}`;
-      const maxPolls = 30;
-      const pollIntervalMs = 3000;
+      const maxPolls = 40;
+      const pollIntervalMs = 4000;
 
-      let resultData: { images?: Array<{ url: string; content_type: string }> } | null = null;
+      let completed = false;
 
       for (let i = 0; i < maxPolls; i++) {
         await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
 
-        const pollResponse = await fetch(resultUrl, {
+        const statusResponse = await fetch(statusUrl, {
           headers: { "Authorization": `Key ${falApiKey}` },
         });
 
-        if (!pollResponse.ok) {
-          console.log(`⏳ Poll ${i + 1}: not ready yet`);
+        if (!statusResponse.ok) {
+          console.log(`⏳ Poll ${i + 1}: status check failed (${statusResponse.status})`);
           continue;
         }
 
-        const pollData = await pollResponse.json() as { status?: string; images?: Array<{ url: string; content_type: string }>; error?: string };
-        console.log(`⏳ Poll ${i + 1}: status =`, pollData.status);
+        const statusData = await statusResponse.json() as { status: string; error?: string };
+        console.log(`⏳ Poll ${i + 1}: status = ${statusData.status}`);
 
-        if (pollData.status === "COMPLETED" || pollData.images) {
-          resultData = pollData;
+        if (statusData.status === "COMPLETED") {
+          completed = true;
           break;
         }
 
-        if (pollData.status === "FAILED" || pollData.error) {
-          throw new Error(`fal.ai job failed: ${pollData.error || "Unknown error"}`);
+        if (statusData.status === "FAILED") {
+          throw new Error(`fal.ai job failed: ${statusData.error || "Unknown error"}`);
         }
+        // IN_QUEUE or IN_PROGRESS — keep polling
       }
 
+      if (!completed) {
+        throw new Error("fal.ai job timed out after polling");
+      }
+
+      // Fetch the result
+      const resultResponse = await fetch(resultUrl, {
+        headers: { "Authorization": `Key ${falApiKey}` },
+      });
+
+      if (!resultResponse.ok) {
+        throw new Error(`Failed to fetch fal.ai result: ${resultResponse.status}`);
+      }
+
+      const resultData = await resultResponse.json() as { images?: Array<{ url: string; content_type: string }> };
+
       if (!resultData?.images?.[0]?.url) {
-        throw new Error("fal.ai job timed out or returned no image");
+        throw new Error("fal.ai returned no image in result");
       }
 
       const generatedImageUrl = resultData.images[0].url;
