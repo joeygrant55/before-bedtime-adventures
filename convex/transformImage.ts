@@ -30,39 +30,17 @@ export const transformToDisney = action({
     console.log("📝 Status updated to 'generating'");
 
     try {
-      // Get the original image from storage
-      const imageBlob = await ctx.storage.get(image.originalImageId);
-
-      if (!imageBlob) {
-        throw new Error("Could not get image from storage");
-      }
-
       const falApiKey = process.env.FAL_KEY;
       if (!falApiKey) {
         throw new Error("FAL_KEY not configured");
       }
 
-      // Step 1: Upload image to fal.ai storage to get a URL
-      console.log("📤 Uploading image to fal.ai storage...");
-
-      const arrayBuffer = await imageBlob.arrayBuffer();
-      const uploadResponse = await fetch("https://storage.fal.run/", {
-        method: "POST",
-        headers: {
-          "Authorization": `Key ${falApiKey}`,
-          "Content-Type": imageBlob.type || "image/jpeg",
-        },
-        body: arrayBuffer,
-      });
-
-      if (!uploadResponse.ok) {
-        const uploadError = await uploadResponse.text();
-        throw new Error(`fal.ai upload failed: ${uploadError}`);
+      // Step 1: Get a public URL for the image from Convex storage
+      const imageUrl = await ctx.storage.getUrl(image.originalImageId);
+      if (!imageUrl) {
+        throw new Error("Could not get public URL for image from Convex storage");
       }
-
-      const uploadResult = await uploadResponse.json() as { url: string };
-      const imageUrl = uploadResult.url;
-      console.log("✅ Image uploaded to fal.ai:", imageUrl);
+      console.log("✅ Got Convex image URL:", imageUrl);
 
       // Step 2: Call FLUX Kontext to transform to Disney/Pixar style
       const prompt = "Transform into a Disney Pixar animated movie frame. Vibrant colors, smooth stylized character designs, warm cinematic lighting, that signature Disney Pixar animation aesthetic. Beautiful cartoon illustration style, same scene composition and subjects.";
