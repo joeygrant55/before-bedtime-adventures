@@ -58,10 +58,11 @@ export const transformToDisney = action({
         throw new Error("GEMINI_API_KEY not configured");
       }
 
-      const prompt = "Transform this photo into a Disney Pixar animated style cartoon. Maintain the scene composition, people, and overall setting but make it look like a frame from a Disney or Pixar animated movie. Use vibrant colors, smooth character designs, and that signature Disney animation aesthetic. Keep all the people and elements recognizable but in cartoon form.";
+      const prompt = "Transform this photo into a Disney Pixar animated style illustration. Reimagine the entire scene as a frame from a Disney or Pixar animated movie — vibrant colors, smooth stylized character designs, warm cinematic lighting, and that signature hand-crafted animation aesthetic. Preserve the composition, setting, and all subjects but render everything in a beautiful cartoon illustration style.";
 
-      // Use Gemini 3 Pro Image (billing enabled)
+      // Use Gemini image models (try newest first)
       const models = [
+        { name: "gemini-3.1-flash-image-preview", label: "Gemini 3.1 Flash Image" },
         { name: "gemini-3-pro-image-preview", label: "Gemini 3 Pro Image" },
       ];
 
@@ -190,14 +191,16 @@ export const transformToDisney = action({
         console.log("✅ Cartoon image stored! Storage ID:", cartoonImageId);
       } else {
         // Mark as failed if no image generated
-        console.log("⚠️ No generated image in response");
+        const finishReason = geminiResult.candidates?.[0]?.finishReason;
+        console.log("⚠️ No generated image in response. finishReason:", finishReason);
+        console.log("🔍 Full response for debug:", JSON.stringify(geminiResult?.candidates?.[0]));
 
         await ctx.runMutation(api.images.updateImageStatus, {
           imageId: args.imageId,
           status: "failed",
         });
 
-        return { success: false, error: "No image generated in API response" };
+        return { success: false, error: `No image generated. Finish reason: ${finishReason}` };
       }
 
       // Update status to completed
