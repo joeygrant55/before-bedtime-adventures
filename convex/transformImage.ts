@@ -47,7 +47,7 @@ export const transformToDisney = action({
         },
         body: JSON.stringify({
           image_url: dataUri,
-          prompt: "Transform into a Disney Pixar animated movie illustration. Vibrant saturated colors, smooth stylized character designs, warm cinematic lighting, that signature Pixar animation aesthetic. Same scene composition and subjects, rendered as a beautiful cartoon.",
+          prompt: "Transform this photo into a Disney Pixar animated movie still frame. Big expressive eyes, smooth rounded character designs, rich saturated jewel-tone colors, soft warm rim lighting, painterly background details, whimsical storybook atmosphere. Render every person as a loveable Disney Pixar character while keeping their likeness and personality. Make it look like an actual frame from a Pixar feature film — magical, joyful, and cinematic.",
           num_inference_steps: 28,
           guidance_scale: 3.5,
           num_images: 1,

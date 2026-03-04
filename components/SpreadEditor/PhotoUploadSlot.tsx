@@ -492,13 +492,13 @@ export function PhotoUploadSlot({
     if (!editable) {
       return (
         <div
-          className="w-full h-full min-h-[200px] rounded-xl overflow-hidden relative shadow-sm"
+          className="w-full h-full min-h-[200px] rounded-xl overflow-hidden relative shadow-sm bg-black"
           style={{ aspectRatio }}
         >
           <img
             src={displayImageUrl}
             alt="Cartoon"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
           />
         </div>
       );
@@ -518,14 +518,14 @@ export function PhotoUploadSlot({
         />
 
         <div
-          className="w-full h-full min-h-[200px] rounded-xl overflow-hidden relative group shadow-sm"
+          className="w-full h-full min-h-[200px] rounded-xl overflow-hidden relative group shadow-sm bg-black"
           style={{ aspectRatio }}
         >
           {/* Cartoon image */}
           <img
             src={displayImageUrl}
             alt="Cartoon"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
           />
 
           {/* Hover overlay with actions */}
