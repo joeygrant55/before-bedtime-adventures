@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useMutation } from "convex/react";
 import { useUser } from "@clerk/nextjs";
 import { api } from "@/convex/_generated/api";
 import { Id, Doc } from "@/convex/_generated/dataModel";
 import { PhotoUploadSlot } from "./PhotoUploadSlot";
+import { CaptionArea } from "./CaptionArea";
 import { useToast } from "@/components/ui/Toast";
 
 type ImageWithUrls = Doc<"images"> & {
@@ -73,6 +74,10 @@ export function CoverSpread({
   const [tempTheme, setTempTheme] = useState<CoverTheme>(coverDesign?.theme || "purple-magic");
 
   const updateCoverDesign = useMutation(api.books.updateCoverDesign);
+  const generateUploadUrl = useMutation(api.images.generateUploadUrl);
+  const updatePageText = useMutation(api.pages.updatePageText);
+  const coverPhotoInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingCoverPhoto, setUploadingCoverPhoto] = useState(false);
 
   const currentTheme = coverDesign?.theme || "purple-magic";
   const currentTitle = coverDesign?.title || bookTitle;
@@ -148,6 +153,27 @@ export function CoverSpread({
     saveCoverDesign({ theme });
   };
 
+  const handleCoverPhotoUpload = async (file: File) => {
+    if (!user) return;
+    setUploadingCoverPhoto(true);
+    try {
+      const uploadUrl = await generateUploadUrl();
+      const uploadResponse = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      const { storageId } = await uploadResponse.json();
+      await saveCoverDesign({ heroImageId: storageId });
+      success("Cover photo updated!");
+    } catch (err) {
+      console.error("Cover photo upload failed:", err);
+      showError("Failed to upload cover photo. Please try again.");
+    } finally {
+      setUploadingCoverPhoto(false);
+    }
+  };
+
   return (
     <div className="flex flex-col items-center gap-8">
       {/* The Spread - Two Facing Pages */}
@@ -159,22 +185,41 @@ export function CoverSpread({
           <div className="flex gap-1">
             {/* LEFT PAGE: Front Cover */}
             <div
-              className="w-[400px] h-[400px] rounded-l-2xl shadow-lg relative overflow-hidden cursor-pointer group"
-              onClick={() => setShowCustomizer(!showCustomizer)}
+              className="w-[400px] h-[400px] rounded-l-2xl shadow-lg relative overflow-hidden group"
             >
-              {/* Cover background with theme gradient */}
-              <div className={`absolute inset-0 bg-gradient-to-br ${THEME_GRADIENTS[currentTheme]}`} />
-
-              {/* Hero image if set */}
-              {heroImageUrl && (
-                <div className="absolute inset-0 opacity-30">
-                  <img
-                    src={heroImageUrl}
-                    alt="Cover hero"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
+              {/* Cover background — photo fills if set, else gradient */}
+              {heroImageUrl ? (
+                <img
+                  src={heroImageUrl}
+                  alt="Cover"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              ) : (
+                <div className={`absolute inset-0 bg-gradient-to-br ${THEME_GRADIENTS[currentTheme]}`} />
               )}
+
+              {/* Dark overlay for text readability when photo is set */}
+              {heroImageUrl && (
+                <div className="absolute inset-0 bg-black/40" />
+              )}
+
+              {/* Upload cover photo button */}
+              <input
+                ref={coverPhotoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleCoverPhotoUpload(file);
+                }}
+              />
+              <button
+                onClick={() => coverPhotoInputRef.current?.click()}
+                className="absolute top-3 right-3 z-20 bg-white/90 hover:bg-white text-gray-700 text-xs font-medium px-3 py-1.5 rounded-full shadow-lg transition-all opacity-0 group-hover:opacity-100 flex items-center gap-1.5"
+              >
+                {uploadingCoverPhoto ? "Uploading..." : heroImageUrl ? "📷 Change photo" : "📷 Add cover photo"}
+              </button>
 
               {/* Content overlay */}
               <div className="relative z-10 h-full flex flex-col items-center justify-center p-8 text-center">
@@ -293,14 +338,27 @@ export function CoverSpread({
             <div className="w-1 bg-gradient-to-b from-transparent via-gray-400 to-transparent" />
 
             {/* RIGHT PAGE: Page 1 */}
-            <div className="w-[400px] h-[400px] bg-white rounded-r-2xl shadow-lg p-6 relative">
-              <PhotoUploadSlot
-                pageId={rightPage._id}
-                imageIndex={0}
-                image={getImageForSlot(0)}
-                aspectRatio="1/1"
-                onAddText={() => handleAddText(0)}
-              />
+            <div className="w-[400px] h-[400px] bg-white rounded-r-2xl shadow-lg overflow-hidden relative flex flex-col">
+              <div className="flex-[3]">
+                <PhotoUploadSlot
+                  pageId={rightPage._id}
+                  imageIndex={0}
+                  image={getImageForSlot(0)}
+                  aspectRatio="4/3"
+                  onAddText={() => handleAddText(0)}
+                />
+              </div>
+              <div className="flex-1 border-t border-gray-100">
+                <CaptionArea
+                  pageId={rightPage._id}
+                  initialText={rightPage.storyText || ""}
+                  placeholder="Write your story here..."
+                  onSave={async (text) => {
+                    await updatePageText({ pageId: rightPage._id, storyText: text });
+                  }}
+                  editable={true}
+                />
+              </div>
             </div>
           </div>
 
